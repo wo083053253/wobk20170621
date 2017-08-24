@@ -1,0 +1,5 @@
+compute3 0 fio_vm_compute3_0_20170725053439 openvpn_jumper_network_20170531232856 98.77.0.21 no_info
+compute2 0 fio_vm_compute2_0_20170725053439 openvpn_jumper_network_20170531232856 98.77.0.9 no_info
+compute5 0 fio_vm_compute5_0_20170725053439 openvpn_jumper_network_20170531232856 98.77.0.5 no_info
+compute4 0 fio_vm_compute4_0_20170725053439 openvpn_jumper_network_20170531232856 98.77.0.13 no_info
+compute1 0 fio_vm_compute1_0_20170725053439 openvpn_jumper_network_20170531232856 98.77.0.20 no_info

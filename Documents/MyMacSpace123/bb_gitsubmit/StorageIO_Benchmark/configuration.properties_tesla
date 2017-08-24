@@ -1,0 +1,66 @@
+export OS_PASSWORD=q5qx30Ec@LlNsLiVCtbYijl0qbh6
+export OS_AUTH_URL=https://tesla.open-test.ibmcloud.com:5000/v2.0
+export OS_USERNAME=admin
+export OS_TENANT_NAME=admin
+export OS_CACERT=/root/test_env/tesla/ca-certificates.crt
+export OS_NO_CACHE=True
+export OS_VOLUME_API_VERSION=2
+export OS_COMPUTE_API_VERSION=2
+
+temp_path=./temp
+output_path=./output
+idmap_path=$temp_path/idmap.txt
+
+# Setting for env setup
+vm_list_file=$output_path/vm_list.txt
+concurrency=3
+image="donotdel_perf_img"
+flavor="m1.customize"
+network_name="openvpn_jumper_network_20160908071319"
+vm_userid="ibmcloud"
+availability_zone=compute_standard
+kvm_list="compute1 compute2 compute3"
+#vm_num_per_kvm_host=2
+vm_num_per_kvm_host=5
+
+# Status checking polling interval in seconds
+polling_interval=3
+# Wait for instance to be active after submit create request (seconds)
+vm_waitfor_active_timeout=300
+# Wait for instance to be ping success(seconds)
+vm_waitfor_ping_timeout=500
+# Wait for instance to be accessible via SSH 22 port(seconds)
+vm_waitfor_ssh_rdp_timeout=600
+
+parallel_user_count=3
+vol_size=100
+vol_attach_device=/dev/vdb
+
+vol_waitfor_available_timeout=100
+vol_waitfor_inuse_timeout=100
+vol_waitfor_detach_timeout=100
+vol_waitfor_deleted_timeout=100
+
+
+# Setting for fio benchmark
+fio_benchmark_result_file=fio_benchmark_result.csv
+fio_round_num=10
+fio_concurrency_list="15" #"1 10 20 30 35 40" #"1 2 3 4 5 10 15 20 25 30 35 40"  #space separated concurrency level: 1 2 3 4 5 10 15 20 25 30 35 40  
+fio_rw_pattern_list="randwrite" #"write read randwrite randread"      #space separated read/write pattern:write read randwrite randread
+#fio_rw_pattern_list="randrw"      #space separated read/write pattern: randrw
+fio_bs_list="4k" #"512k" # #"1m" #                                 #space separated read/write blocksize: 4k 256k 512k 1M
+fio_filename=/dev/vdb
+fio_direct=1
+fio_ioengine=libaio
+fio_iodepth=32
+fio_runtime=300
+#fio_rwmixread=70         #if test pure read/write/randread/randwrite, please comment this line
+#fio_size=40G
+sleep_interval=20                            # seconds to sleep between each tests
+vm_realtime_iopslog_clean_flag=0 # 1 means will clean fio realtime iops log of VM
+vm_cache_clean_flag=0    # 1 means will clean cache of VM
+kvm_cache_clean_flag=0   # 1 means will clean cache of KVM
+ceph_cache_clean_flag=0  # 1 means will clean cache of Ceph server
+ceph_host_list="ceph1 ceph2 ceph3"                  #"cph001ccz065 cph002ccz065"
+kvm_host_list="compute1 compute2 compute3"
+chef01=integrated-test-wdc04-lab.openstack.blueboxgrid.com
