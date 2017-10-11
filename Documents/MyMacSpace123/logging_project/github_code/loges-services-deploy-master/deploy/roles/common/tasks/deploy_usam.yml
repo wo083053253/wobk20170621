@@ -1,0 +1,58 @@
+- name: Initialize vars
+  set_fact:
+    usam_files: "/opt/deploy/files/usam"
+    usam_groups: []
+
+- name: Get info on usam folder
+  stat: path={{ usam_files }}
+  run_once: true
+  delegate_to: 127.0.0.1
+  connection: local
+  register: usam_folder_stat
+
+- name: Get info on zkservers file
+  stat: path="/usr/local/bin/zkservers"
+  run_once: true
+  delegate_to: 127.0.0.1
+  connection: local
+  register: zkservers_stat
+
+- name: Get info on zktree file
+  stat: path="/usr/local/bin/zktree"
+  run_once: true
+  delegate_to: 127.0.0.1
+  connection: local
+  register: zktree_stat
+
+- name: Gather zookeeper servers
+  command: /usr/local/bin/zkservers
+  run_once: true
+  delegate_to: 127.0.0.1
+  connection: local
+  register: zk_servers_cmd
+  when: usam_folder_stat.stat.path is defined and zkservers_stat.stat.path is defined
+
+- name: Store zk server list
+  set_fact:
+    zk_servers: "{{ zk_servers_cmd.stdout }}"
+  when: zk_servers_cmd is defined and zk_servers_cmd.stdout is defined
+
+- name: Get usam data from zookeepers
+  command: "/usr/local/bin/zktree --zookeeper {{ zk_servers }} --root /logmet/usam"
+  run_once: true
+  delegate_to: 127.0.0.1
+  connection: local
+  register: zk_data_cmd
+  when: zk_servers is defined and zktree_stat.stat.path is defined
+
+- name: Store zookeeper data
+  set_fact:
+    zk_data: "{{ zk_data_cmd.stdout | from_json }}"
+  when: zk_data_cmd is defined and zk_data_cmd.stdout is defined
+
+- name: Check that data was found
+  set_fact: have_usam_data=true
+  when: zk_data.ldap.host is defined and zk_data.ldap.ip is defined and zk_data.groups is defined
+
+- include: ../../common/tasks/deploy_usam_tasks.yml
+  when: have_usam_data is defined

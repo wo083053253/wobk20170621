@@ -1,0 +1,108 @@
+- name: install supervisor
+  sudo_user: root
+  sudo: yes
+  apt:
+    name: supervisor
+    state: latest
+
+- name: install monitor
+  sudo_user: root
+  sudo: yes
+  apt:
+    name: monitor-deploy
+    state: latest
+
+- name: Install python packages
+  sudo_user: root
+  sudo: yes
+  pip: name={{item}}
+  with_items:
+    - cherrypy
+    - statsd 
+    - routes
+
+- name: prepare the configuration files for monitor  
+  copy:
+    src: /opt/deploy/roles/monitor/templates/usr/local/bin/runLogmetProvision.sh
+    dest: /usr/local/bin/runLogmetProvision.sh
+    owner: root
+    group: root
+    mode: 0755
+
+- name: prepare the configuration files for monitor- conf
+  sudo_user: root
+  sudo: yes
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: root
+    group: root
+    mode: 0644
+  with_items:
+    - { src: "etc/collectd/collectd.conf.d/statsd.conf", dest: "/etc/collectd/collectd.conf.d/statsd.conf" }
+    - { src: "etc/logrotate.d/provisioning-tests", dest: "/etc/logrotate.d/provisioning-tests" }
+    - { src: "etc/supervisor/conf.d/monitor-backend.conf", dest: "/etc/supervisor/conf.d/monitor-backend.conf" }    
+    - { src: "etc/supervisor/conf.d/monitor-frontend.conf", dest: "/etc/supervisor/conf.d/monitor-frontend.conf" }
+    - { src: "etc/supervisor/conf.d/monitor-collectd.conf", dest: "/etc/supervisor/conf.d/monitor-collectd.conf" }
+    - { src: "etc/supervisor/conf.d/provisioning-tests.conf", dest: "/etc/supervisor/conf.d/provisioning-tests.conf" } 
+
+- name: prepare the configuration files for monitor- shell
+  sudo_user: root
+  sudo: yes
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: root
+    group: root
+    mode: 0755
+  with_items:
+    - { src: "usr/local/bin/config_lsf.sh", dest: "/usr/local/bin/config_lsf.sh" }   
+    - { src: "usr/local/bin/overrideHosts.sh", dest: "/usr/local/bin/overrideHosts.sh" }      
+    - { src: "usr/local/bin/runMonitorBackend.sh", dest: "/usr/local/bin/runMonitorBackend.sh" } 
+    - { src: "usr/local/bin/runMonitorFrontend.sh", dest: "/usr/local/bin/runMonitorFrontend.sh" } 
+    - { src: "usr/local/bin/runMonitorCollectd.sh", dest: "/usr/local/bin/runMonitorCollectd.sh" } 
+
+
+- name: Ensure supervisor service
+  sudo_user: root
+  sudo: yes
+  service: name=supervisor state=started
+
+
+# - name: testframework
+#   sudo_user: root
+#   sudo: yes
+#   docker:
+#     name: testframework
+#     state: reloaded
+#     restart_policy: always
+#     pull: always
+#     hostname: "{{ ansible_hostname }}"
+#     insecure_registry: yes
+#     image: "{{ registry }}/{{ image_name }}:{{ image_tag }}"
+#     ports:
+#     - "{{ ansible_eth0.ipv4.address }}:9090:9090"
+#     volumes:
+#     - "/testframework_data:/opt/testframework/data"
+#     env:
+#         CLUSTER_NAME: testframework
+#         BLUEMIX_USERID: "{{ MONITOR_USER_ID }}"
+#         BLUEMIX_PASSWORD: "{{ MONITOR_PASSWORD }}"
+#         BLUEMIX_SPACE: "test"
+#         BLUEMIX_ORG_NAME: "alchemy-test"
+#         GRAPHITE_ENVIRONMENT: "{{ graphite_environment }}"
+#         METRICS_HOST: "{{ metrics_host }}"
+#         METRICS_PORT: "{{ metrics_port }}"
+#         IP_OVERRIDE_LOGS: "{{ IP_OVERRIDE_LOGS }}"
+#         IP_OVERRIDE_METRICS: "{{ IP_OVERRIDE_METRICS }}"
+#         IP_OVERRIDE_API: "{{ IP_OVERRIDE_API }}"
+#         LOGS_DATA_COLLECTION_SERVER: "{{ logs_hostname }}"
+#         METRICS_DATA_COLLECTION_SERVER: "{{ metrics_hostname }}"
+#         LOGMET_API_SERVER: "{{ dashboard_proxy }}"
+#         STATSD_HOST: "localhost"
+#         STATSD_PORT: "8126"
+#         MANAGER_IP: "{{ MANAGER_IP }}"
+#   register: docker_module
+#   until: docker_module.failed is not defined
+#   retries: 5
+#   delay: 10

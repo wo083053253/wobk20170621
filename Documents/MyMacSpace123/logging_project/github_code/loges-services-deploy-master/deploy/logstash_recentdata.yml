@@ -1,0 +1,7 @@
+- hosts: logstash_recentdata_servers
+  serial: "{{ rolling_update_batch_size }}"
+  roles:
+    - logstash_recentdata
+  vars_files:
+    - group_vars/logstash_recentdata_servers
+    - group_vars/versions

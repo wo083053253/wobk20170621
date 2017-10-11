@@ -1,0 +1,3 @@
+---
+- name: restart esretention
+  service: name=esretention state=restarted

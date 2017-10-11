@@ -1,0 +1,49 @@
+
+{% if es_config %}
+{{ es_config | to_nice_yaml }}
+{% endif %}
+
+{% if es_config['cluster.name'] is not defined %}
+cluster.name: elasticsearch
+{% endif %}
+
+{% if es_config['node.name'] is not defined %}
+node.name: {{inventory_hostname}}-{{es_instance_name}}
+{% endif %}
+
+{% if es_enable_xpack %}
+xpack.security.enabled: false
+{% endif %}
+
+#################################### Paths ####################################
+
+# Path to directory containing configuration (this file and logging.yml):
+path.conf: {{ conf_dir }}
+
+{# path.data: {{ data_dirs | array_to_str }} #}
+path.data: {{ data_dirs }}
+
+{% if es_version | version_compare('5.0', '<') %}
+path.work: {{ work_dir }}
+{% endif %}
+
+path.logs: {{ log_dir }}
+
+
+########################## Search Guard Configuration #########################
+
+searchguard.ssl.transport.enabled: true
+searchguard.ssl.transport.keystore_filepath: {{ conf_dir }}/node-0-keystore.jks
+searchguard.ssl.transport.keystore_password: {{ passwd }}
+searchguard.ssl.transport.truststore_filepath: {{ conf_dir }}/truststore.jks
+searchguard.ssl.transport.truststore_password: {{ passwd }}
+searchguard.ssl.transport.enforce_hostname_verification: false
+searchguard.ssl.transport.resolve_hostname: false
+
+searchguard.ssl.http.enabled: true
+searchguard.ssl.http.keystore_filepath: {{ conf_dir }}/node-0-keystore.jks
+searchguard.ssl.http.keystore_password: {{ passwd }}
+searchguard.ssl.http.truststore_filepath: {{ conf_dir }}/truststore.jks
+searchguard.ssl.http.truststore_password: {{ passwd }}
+searchguard.authcz.admin_dn:
+  - CN=kirk,OU=client,O=client,L=test, C=DE

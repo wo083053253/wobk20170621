@@ -1,0 +1,39 @@
+---
+- name: make sure the configuration file directory is exist
+  sudo_user: root
+  sudo: yes
+  file:
+    path: "{{ item }}"
+    recurse: yes
+    state: directory
+  with_items:
+    - "/etc/mt-logstash-forwarder/conf.d/"
+
+- name: prepare the configuration files for collectd
+  sudo_user: root
+  sudo: yes
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: root
+    group: root
+    mode: 0644
+  with_items:  
+    - { src: "mt-lsf-config.sh.j2", dest: "/etc/mt-logstash-forwarder/mt-lsf-config.sh" }
+    - { src: "logmet.conf", dest: "/etc/mt-logstash-forwarder/conf.d/logmet.conf" }
+
+#install ibm-crn plugin
+- name: install logstash forward and write-mtlumberjack plugins
+  sudo_user: root
+  sudo: yes
+  apt: pkg={{ item }}
+  with_items:
+     - mt-logstash-forwarder
+
+- name: restart mt-logstash-forwarder
+  sudo_user: root
+  sudo: yes
+  service:
+    name: mt-logstash-forwarder
+    enabled: yes
+    state: restarted

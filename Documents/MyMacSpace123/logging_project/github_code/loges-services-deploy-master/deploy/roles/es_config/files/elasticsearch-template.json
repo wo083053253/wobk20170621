@@ -1,0 +1,578 @@
+{
+  "template" : "logstash-*",
+  "version" : 50001,
+  "settings" : {
+    "index.refresh_interval" : "25s",
+    "index.routing.allocation.require.box_type" : "hot",
+    "index.store.throttle.type": "merge",
+    "index.store.throttle.max_bytes_per_sec": "2000mb",
+    "index.unassigned.node_left.delayed_timeout": "30m",
+    "index.query.default_field": "message",
+    "index.mapping.total_fields.limit": 25000,
+    "index.mapping.ignore_malformed": "true",
+    "index.search.slowlog.threshold.query.warn": "1m",
+    "index.write.wait_for_active_shards": 1,
+    "index.merge.scheduler.max_merge_count" : "12"
+  },
+  "mappings" : {
+    "_default_" : {
+      "date_detection":false,
+      "numeric_detection": false,
+      "_all" : {"enabled" : true, "norms" : false},
+      "dynamic_templates" : [ {
+        "message_field" : {
+          "path_match" : "message",
+          "match_mapping_type" : "string",
+          "mapping" : {
+            "type" : "text",
+            "norms" : false
+          }
+        }
+      }, {
+        "dates" : {
+          "match": ".*_date|.*_timestamp|.*_datetime|timestamp",
+          "match_pattern": "regex",
+          "mapping": {
+              "type": "date"
+            }
+          }
+      },{
+        "string_fields" : {
+          "match" : "*",
+          "match_mapping_type" : "string",
+          "mapping" : {
+            "type" : "text", "norms" : false,
+            "fields" : {
+              "keyword" : { "type": "keyword", "ignore_above": 10922 }
+            }
+          }
+        }
+      } 
+     ],
+      "properties" : {
+            "@timestamp": { "type": "date", "include_in_all": false },
+            "RequestTime": {
+                "type": "date"    
+            },  
+            "ResponseTime": {
+                "type": "date"    
+            },  
+            "als_data_conversation_begin": {
+                "type": "date"    
+            }, 
+            "als_data_conversation_end": {
+                "type": "date"    
+            }, 
+            "als_data_dialog_begin": {
+                "type": "date"    
+            },
+            "als_data_dialog_end": {
+                "type": "date"    
+            },
+            "als_data_nlu_begin": {
+                "type": "date"    
+            },
+            "als_data_nlu_end": {
+                "type": "date"    
+            },
+            "datetime": {
+                "type": "date"    
+            },
+            "ibm_datetime": {
+                "type": "date"    
+            },
+            "request_start": {
+                "type": "date"    
+            },  
+        "@version": { "type": "keyword", "include_in_all": false },
+        "ALCH_TENANT_ID": {
+          "fields": {
+            "raw": { "ignore_above": 256, "doc_values": true, "index": "not_analyzed", "type": "string" }
+          },
+          "fielddata": { "format": "disabled" },
+          "doc_values": true,
+          "index": "not_analyzed",
+          "type": "string"
+        },
+         "message" : {
+          "type": "string",
+          "index": "analyzed",
+          "omit_norms": true,
+          "fielddata": true
+        },
+        "geoip"  : {
+          "dynamic": true,
+          "properties" : {
+            "ip": { "type": "ip" },
+            "location" : { "type" : "geo_point" },
+            "latitude" : { "type" : "half_float" },
+            "longitude" : { "type" : "half_float" }
+          }
+        }
+      }
+    }
+    
+    ,    
+    "ActivityTracker": {
+        "_all": {
+          "enabled": true,
+          "norms": false
+        },
+        "dynamic_templates": [
+          {
+            "message_field": {
+              "path_match": "message",
+              "match_mapping_type": "string",
+              "mapping": {
+                "norms": false,
+                "type": "text"
+              }
+            }
+          },
+          {
+            "string_fields": {
+              "match": "*",
+              "match_mapping_type": "string",
+              "mapping": {
+                "fields": {
+                  "keyword": {
+                    "type": "keyword",
+                    "ignore_above": 10922
+                  }
+                },
+                "norms": false,
+                "type": "text"
+              }
+            }
+          }
+        ],
+        "properties": {
+          "@timestamp": {
+            "type": "date",
+            "include_in_all": false
+          },
+          "@version": {
+            "type": "keyword",
+            "include_in_all": false
+          },
+          "ALCH_ACCOUNT_ID": {
+            "type": "text",
+            "norms": false,
+            "fields": {
+              "keyword": {
+                "type": "keyword"
+              }
+            }
+          },
+          "ALCH_TENANT_ID": {
+          "fields": {
+            "raw": { "ignore_above": 256, "doc_values": true, "index": "not_analyzed", "type": "string" }
+          },
+          "fielddata": { "format": "disabled" },
+          "doc_values": true,
+          "index": "not_analyzed",
+          "type": "string"
+        },
+          "action": {
+            "type": "text",
+            "norms": false,
+            "fields": {
+              "keyword": {
+                "type": "keyword"
+              }
+            }
+          },
+          "api": {
+            "properties": {
+              "createdAt": {
+                "type": "text",
+                "norms": false,
+                "fields": {
+                  "keyword": {
+                    "type": "keyword"
+                  }
+                }
+              },
+              "id": {
+                "type": "text",
+                "norms": false,
+                "fields": {
+                  "keyword": {
+                    "type": "keyword"
+                  }
+                }
+              },
+              "name": {
+                "type": "text",
+                "norms": false,
+                "fields": {
+                  "keyword": {
+                    "type": "keyword"
+                  }
+                }
+              }
+            }
+          },
+          "attachments": {
+            "properties": {
+              "content": {
+                "type": "text",
+                "norms": false,
+                "fields": {
+                  "keyword": {
+                    "type": "keyword",
+                    "index": "not_analyzed",
+                    "ignore_above": 256
+                  }
+                }
+              },
+              "contentType": {
+                "type": "text",
+                "norms": false,
+                "fields": {
+                  "keyword": {
+                    "type": "keyword"
+                  }
+                }
+              },
+              "typeURI": {
+                "type": "text",
+                "norms": false,
+                "fields": {
+                  "keyword": {
+                    "type": "keyword"
+                  }
+                }
+              }
+            }
+          },
+          "eventTime": {
+            "type": "text",
+            "norms": false,
+            "fields": {
+              "keyword": {
+                "type": "keyword"
+              }
+            }
+          },
+          "eventType": {
+            "type": "text",
+            "norms": false,
+            "fields": {
+              "keyword": {
+                "type": "keyword"
+              }
+            }
+          },
+          "event_uuid": {
+            "type": "text",
+            "norms": false,
+            "fields": {
+              "keyword": {
+                "type": "keyword"
+              }
+            }
+          },
+          "geoip": {
+            "dynamic": "true",
+            "properties": {
+              "ip": {
+                "type": "ip"
+              },
+              "latitude": {
+                "type": "half_float"
+              },
+              "location": {
+                "type": "geo_point"
+              },
+              "longitude": {
+                "type": "half_float"
+              }
+            }
+          },
+          "id": {
+            "type": "text",
+            "norms": false,
+            "fields": {
+              "keyword": {
+                "type": "keyword"
+              }
+            }
+          },
+          "initiator": {
+            "properties": {
+              "credential": {
+                "properties": {
+                  "token": {
+                    "type": "text",
+                    "norms": false,
+                    "fields": {
+                      "keyword": {
+                        "type": "keyword"
+                      }
+                    }
+                  },
+                  "type": {
+                    "type": "text",
+                    "norms": false,
+                    "fields": {
+                      "keyword": {
+                        "type": "keyword"
+                      }
+                    }
+                  }
+                }
+              },
+              "host": {
+                "properties": {
+                  "address": {
+                    "type": "text",
+                    "norms": false,
+                    "fields": {
+                      "keyword": {
+                        "type": "keyword"
+                      }
+                    }
+                  },
+                  "agent": {
+                    "type": "text",
+                    "norms": false,
+                    "fields": {
+                      "keyword": {
+                        "type": "keyword"
+                      }
+                    }
+                  }
+                }
+              },
+              "id": {
+                "type": "text",
+                "norms": false,
+                "fields": {
+                  "keyword": {
+                    "type": "keyword"
+                  }
+                }
+              },
+              "name": {
+                "type": "text",
+                "norms": false,
+                "fields": {
+                  "keyword": {
+                    "type": "keyword"
+                  }
+                }
+              },
+              "project_id": {
+                "type": "text",
+                "norms": false,
+                "fields": {
+                  "keyword": {
+                    "type": "keyword"
+                  }
+                }
+              }
+            }
+          },
+          "latencies": {
+            "properties": {
+              "observer": {
+                "type": "long"
+              },
+              "request": {
+                "type": "long"
+              },
+              "target": {
+                "type": "long"
+              }
+            }
+          },
+          "logmet_cluster": {
+            "type": "text",
+            "norms": false,
+            "fields": {
+              "keyword": {
+                "type": "keyword"
+              }
+            }
+          },
+          "message": {
+            "type": "text",
+            "norms": false
+          },
+          "observer": {
+            "properties": {
+              "credential": {
+                "type": "object"
+              },
+              "host": {
+                "properties": {
+                  "address": {
+                    "type": "text",
+                    "norms": false,
+                    "fields": {
+                      "keyword": {
+                        "type": "keyword"
+                      }
+                    }
+                  }
+                }
+              },
+              "id": {
+                "type": "text",
+                "norms": false,
+                "fields": {
+                  "keyword": {
+                    "type": "keyword"
+                  }
+                }
+              },
+              "name": {
+                "type": "text",
+                "norms": false,
+                "fields": {
+                  "keyword": {
+                    "type": "keyword"
+                  }
+                }
+              }
+            }
+          },
+          "outcome": {
+            "type": "text",
+            "norms": false,
+            "fields": {
+              "keyword": {
+                "type": "keyword"
+              }
+            }
+          },
+          "reason": {
+            "properties": {
+              "reasonCode": {
+                "type": "long"
+                },              
+              "reasonType": {
+                "type": "text",
+                "norms": false,
+                "fields": {
+                  "keyword": {
+                    "type": "keyword"
+                  }
+                }
+              }
+            }
+          },
+          "reporterchain": {
+            "properties": {
+              "reportedTime": {
+                "type": "date"
+              },
+              "reporterId": {
+                "type": "text",
+                "norms": false,
+                "fields": {
+                  "keyword": {
+                    "type": "keyword"
+                  }
+                }
+              },
+              "role": {
+                "type": "text",
+                "norms": false,
+                "fields": {
+                  "keyword": {
+                    "type": "keyword"
+                  }
+                }
+              }
+            }
+          },
+          "requestPath": {
+            "type": "text",
+            "norms": false,
+            "fields": {
+              "keyword": {
+                "type": "keyword"
+              }
+            }
+          },
+          "severity": {
+            "type": "text",
+            "norms": false,
+            "fields": {
+              "keyword": {
+                "type": "keyword"
+              }
+            }
+          },
+          "tags": {
+            "type": "text",
+            "norms": false,
+            "fields": {
+              "keyword": {
+                "type": "keyword"
+              }
+            }
+          },
+          "target": {
+            "properties": {
+              "credential": {
+                "type": "object"
+              },
+              "host": {
+                "properties": {
+                  "agent": {
+                    "type": "text",
+                    "norms": false,
+                    "fields": {
+                      "keyword": {
+                        "type": "keyword"
+                      }
+                    }
+                  }
+                }
+              },
+              "name": {
+                "type": "text",
+                "norms": false,
+                "fields": {
+                  "keyword": {
+                    "type": "keyword"
+                  }
+                }
+              },
+              "typeURI": {
+                "type": "text",
+                "norms": false,
+                "fields": {
+                  "keyword": {
+                    "type": "keyword"
+                  }
+                }
+              }
+            }
+          },
+          "type": {
+            "type": "text",
+            "norms": false,
+            "fields": {
+              "keyword": {
+                "type": "keyword"
+              }
+            }
+          },
+          "typeURI": {
+            "type": "text",
+            "norms": false,
+            "fields": {
+              "keyword": {
+                "type": "keyword"
+              }
+            }
+          }
+        }
+      }
+    
+  }
+}

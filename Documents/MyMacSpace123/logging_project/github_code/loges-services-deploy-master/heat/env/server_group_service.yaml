@@ -1,0 +1,90 @@
+heat_template_version: 2013-05-23
+resources:
+  rand:
+    type: OS::Heat::RandomString
+    properties:
+      length: 8
+      sequence: lowercase
+
+  es_data_hot_server_group:
+    type: OS::Nova::ServerGroup
+    properties:
+      name:
+        str_replace:
+          template: stack-role-rand
+          params:
+            stack: { "Fn::Select": [ 0, { "Fn::Split": [ "-", { get_param: "OS::stack_name" }]}]}
+            role: es_data_hot_server_group
+            rand: { get_resource: rand }
+      policies: [ 'anti-affinity' ]
+
+  es_data_warm_server_group:
+    type: OS::Nova::ServerGroup
+    properties:
+      name:
+        str_replace:
+          template: stack-role-rand
+          params:
+            stack: { "Fn::Select": [ 0, { "Fn::Split": [ "-", { get_param: "OS::stack_name" }]}]}
+            role: es_data_warm_server_group
+            rand: { get_resource: rand }
+      policies: [ 'anti-affinity' ]
+
+  es_master_server_group:
+    type: OS::Nova::ServerGroup
+    properties:
+      name:
+        str_replace:
+          template: stack-role-rand
+          params:
+            stack: { "Fn::Select": [ 0, { "Fn::Split": [ "-", { get_param: "OS::stack_name" }]}]}
+            role: es_master_server_group
+            rand: { get_resource: rand }
+      policies: [ 'anti-affinity' ]
+
+  es_http_server_group:
+    type: OS::Nova::ServerGroup
+    properties:
+      name:
+        str_replace:
+          template: stack-role-rand
+          params:
+            stack: { "Fn::Select": [ 0, { "Fn::Split": [ "-", { get_param: "OS::stack_name" }]}]}
+            role: es_http_server_group
+            rand: { get_resource: rand }
+      policies: [ 'anti-affinity' ]
+
+  memcache_server_group:
+    type: OS::Nova::ServerGroup
+    properties:
+      name:
+        str_replace:
+          template: stack-role-rand
+          params:
+            stack: { "Fn::Select": [ 0, { "Fn::Split": [ "-", { get_param: "OS::stack_name" }]}]}
+            role: memcache_server_group
+            rand: { get_resource: rand }
+      policies: [ 'anti-affinity' ]
+
+  elasticsearchlb_server_group:
+    type: OS::Nova::ServerGroup
+    properties:
+      name:
+        str_replace:
+          template: stack-role-rand
+          params:
+            stack: { "Fn::Select": [ 0, { "Fn::Split": [ "-", { get_param: "OS::stack_name" }]}]}
+            role: elasticsearchlb_server_group
+            rand: { get_resource: rand }
+      policies: [ 'anti-affinity' ]
+
+outputs:
+  server_group_id:
+    description: Server group definitions
+    value:
+      es_data_hot_server_group: { get_resource: es_data_hot_server_group }
+      es_data_warm_server_group: { get_resource: es_data_warm_server_group }
+      es_master_server_group: { get_resource: es_master_server_group }
+      es_http_server_group: { get_resource: es_http_server_group }
+      memcache_server_group: { get_resource: memcache_server_group }
+      elasticsearchlb_server_group: { get_resource: elasticsearchlb_server_group }

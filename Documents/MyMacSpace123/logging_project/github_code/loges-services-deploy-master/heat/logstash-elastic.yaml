@@ -1,0 +1,177 @@
+heat_template_version: 2014-10-16
+parameters:
+  flavor:
+    type: json
+    description: flavor used by the web servers
+  min_size:
+    type: json
+    description: min size
+  images:
+    type: json
+    description: image names for default, elasticsearch and logstash
+  availability_zone:
+    type: json
+    description: Availability zone for the hypervisors
+  cluster_name:
+    type: string
+    default: elasticsearch_1
+  cluster_num:
+    type: number
+    default: 1
+  weight:
+    type: number
+    default: 0
+  kafka_topic:
+    type: string
+    default: logtopic
+  redstone_magic:
+    description: redstone access magic word
+    type: string
+    hidden: true
+    default: reddiamond:wsaq!23e
+  apt_repo:
+    description: aptly publish repository
+    type: string
+    default: logging
+  environment:
+    description: stack deploy environment
+    type: string
+    default: dev
+  carbonrelay_address:
+    description: carbonrelay IP address
+    type: string
+    default: 10.176.109.169
+  key:
+    type: string  
+    default: heat_key
+  kafka_service_url:
+    type: string
+    default: logmanage.dev.opvis.bluemix.net
+  kafka_shard_id:
+    type: string
+  internal_network:
+    description: internal network id
+    type: string
+  external_network:
+    description: external network id
+    type: string
+  front_cidr:
+    type: string
+    description: internal cidr
+    default: 10.0.0.0/8
+
+resources:
+  context:
+    type: context.yaml
+
+  # Server group definitions
+  server_groups:
+    type: IBM::Logmet::ServerGroupService
+    
+  security_groups:
+    type: IBM::Logmet::SecurityGroups
+    properties:
+      front_cidr: { get_param: front_cidr }
+
+  # Manager node definition
+  manager_service:
+    depends_on: [ server_groups ]
+    type: IBM::Logmet::ManagerService
+    properties:
+      flavor: { get_param: flavor }
+      images: { get_param: images }
+      key: { get_param: key }
+      internal_network: { get_param: internal_network}
+      external_network: { get_param: external_network }
+      security_group: { get_attr: [ security_groups, security_group_id, manager_security_group ] }
+      availability_zone: { get_param: availability_zone }
+      init_manager_private_key: { get_attr: [ context, private_key ] }
+      apt_repo: { get_param: apt_repo }
+      redstone_magic: { get_param: redstone_magic }
+      environment:  { get_param: environment }
+      carbonrelay:  { get_param: carbonrelay_address }
+      kafka_service_url: { get_param: kafka_service_url }
+      kafka_shard_id: { get_param: kafka_shard_id }
+      
+  # Load balancer definitions
+  haproxy_service:
+    depends_on: [ manager_service ]
+    type: IBM::Logmet::HAProxyService
+    properties:
+      flavor: { get_param: flavor }
+      images: { get_param: images }
+      frontend_network: { get_param: internal_network}
+      elasticsearch_lb_security_group: { get_attr: [ security_groups, security_group_id ,elasticsearch_lb_security_group ] }
+      config: { get_attr: [ manager_service, metadata, config ] }
+      manager_ip: { get_attr: [ manager_service, metadata, manager_ip ] }
+      min_size: { get_param: min_size }
+      init_manager_private_key: { get_attr: [ context, private_key ] }
+      availability_zone: { get_param: availability_zone }
+      cluster_name: { get_param: cluster_name }
+      cluster_num: { get_param: cluster_num }
+      server_group: { get_attr: [ server_groups, server_group_id, elasticsearchlb_server_group ] }
+
+
+  # Elasticsearch cluster definitions
+  logstash_es_service:
+    depends_on: [ haproxy_service ]
+    type: IBM::Logmet::ElasticLogstashService
+    properties:
+      flavor: { get_param: flavor }
+      images: { get_param:  images }
+      frontend_network: { get_param: internal_network}
+      init_manager_private_key: { get_attr: [ context, private_key ] }
+      elasticsearch_security_group: { get_attr: [ security_groups, security_group_id, elasticsearch_security_group ] }
+      logstash_security_group:  { get_attr: [ security_groups, security_group_id, logstash_security_group ] }
+      monitor_security_group:  { get_attr: [ security_groups, security_group_id, monitor_security_group ] }
+      logstash_objstore_security_group:  { get_attr: [ security_groups, security_group_id, logstash_objstore_security_group ] }
+      manager_ip: { get_attr: [ manager_service, metadata, manager_ip ] }
+      config: { get_attr: [ manager_service, metadata, config ] }
+      min_size: { get_param: min_size }
+      es_data_hot_server_group: { get_attr: [ server_groups, server_group_id, es_data_hot_server_group ] }
+      es_data_warm_server_group: { get_attr: [ server_groups, server_group_id, es_data_warm_server_group ] }
+      es_master_server_group: { get_attr: [ server_groups, server_group_id, es_master_server_group ] }
+      es_http_server_group: { get_attr: [ server_groups, server_group_id, es_http_server_group ] }
+      availability_zone: { get_param: availability_zone }
+      cluster_name: { get_param: cluster_name }
+      cluster_num: { get_param: cluster_num }
+
+  # Ansible configuration
+  post_deploy_service:
+    type: IBM::Logmet::PostDeployService
+    depends_on: [ logstash_es_service ]
+    #depends_on: [ logstash_es_service]
+    properties:
+      stack_id: { get_param: kafka_shard_id }
+      manager_id: { get_attr: [ manager_service, metadata, manager_id ] }
+      kafka_topic: { get_param: kafka_topic }
+      cluster_num: { get_param: cluster_num }
+      weight: { get_param: weight }
+
+# Definitions for the metadata the stack will expose
+outputs:
+  haproxy_vips:
+    description: HAProxy virtual IPs
+    value:
+      vip_address: { get_attr: [ haproxy_service, elasticsearch_lb_vip ] }
+
+  stack_scale_urls:
+    description: Scale urls
+    value:
+      - get_attr: [ logstash_es_service, scale_urls ]
+      - get_attr: [ haproxy_service, scale_urls ]
+
+  server_groups:
+    description: Server group UUIDs
+    value: { get_attr: [ server_groups, server_group_id ] }
+
+  public_endpoints:
+    description: Public-facing IP addresses
+    value:
+      manager: { get_attr: [ manager_service, metadata, manager_ip ] }
+
+  networks:
+    description: Network UUIDs
+    value:
+      external_network:  { get_param: internal_network}
+      internal_network:  { get_param: internal_network}

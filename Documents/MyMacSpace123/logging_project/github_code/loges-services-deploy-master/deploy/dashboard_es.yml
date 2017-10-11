@@ -1,0 +1,6 @@
+- hosts: dashboard_es_servers
+  serial: "{{ rolling_update_batch_size }}"
+  roles:
+  - dashboard_es
+  vars_files:
+  - group_vars/versions

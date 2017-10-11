@@ -1,0 +1,4 @@
+NGINXTIMESTAMP \[%{MONTHDAY:day}/%{MONTH:month}/%{YEAR:day}:%{HOUR:hour}:%{MINUTE:minute}:%{NUMBER:seconds}\ %{ISO8601_TIMEZONE:timezone}\]
+NGINXERRORSTAMP %{YEAR:year}/%{MONTHNUM:month}/%{MONTHDAY:day}\ %{HOUR:hour}:%{MINUTE:minute}:%{SECOND:second}
+
+

@@ -1,0 +1,11 @@
+- name: check if there is a container running
+  sudo_user: root
+  sudo: yes
+  shell: docker ps -a | grep {{ container_name }} | grep 'Up' | wc -l
+  register: container_running 
+  
+- name: check if container just get started
+  sudo_user: root
+  sudo: yes
+  shell: docker ps -a | grep {{ container_name }} | grep -E 'Up Less than a second|Up [0-9]* seconds' | wc -l
+  register: container_started

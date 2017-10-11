@@ -1,0 +1,134 @@
+heat_template_version: 2013-05-23
+description: Template to create a Nova instance based on the group1 auto scaling group
+parameters:
+  image:
+    type: string
+    description: Image used for servers
+    default: ubuntu-amd64
+  key:
+    type: string
+    description: SSH key to connect to the servers
+    default: heat_key
+  flavor:
+    type: string
+    description: flavor used by the web servers
+    default: m1.small
+  frontend_network:
+    type: string
+    description: internal network
+    default: private
+  security_group:
+    type: string
+    description: security group
+  manager_ip:
+    type: string
+    description: ip or hostname of manager node
+  init_manager_private_key:
+    type: string
+    description: SSH private key to connect to initial manager    
+  config:
+    type: string
+    description: Config resource for node registration
+  role_name:
+    type: string
+    description: Name of the role
+  availability_zone:
+    type: string
+    description: Hypervisor availability zone
+    default: nova
+  cluster_num:
+    type: number
+    description: Number of the cluster to be deployed
+  cluster_name:
+    type: string
+    description: Cluster name for elasticsearch
+  redstone_magic:
+    description: redstone access magic word
+    type: string
+    hidden: true
+    default: reddiamond:wsaq!23e
+  apt_repo:
+    description: aptly publish repository
+    type: string
+    default: logging
+
+resources:
+  rand:
+    type: OS::Heat::RandomString
+    properties:
+      length: 6
+      sequence: lowercase
+
+  port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_param: frontend_network }
+      security_groups:
+        - { get_param: security_group }
+      name:
+        str_replace:
+          template: stack-role-rand
+          params:
+            stack: { "Fn::Select": [ 0, { "Fn::Split": [ "-", { get_param: "OS::stack_name" }]}]}
+            role: { get_param: role_name }
+            rand: { get_resource: rand }
+
+  s:
+    type: OS::Nova::Server
+    properties:
+      name:
+        str_replace:
+          template: stack-role-rand-octet
+          params:
+            stack: { "Fn::Select": [ 0, { "Fn::Split": [ "-", { get_param: "OS::stack_name" }]}]}
+            role: { get_param: role_name }
+            rand: { get_resource: rand }
+            octet: { "Fn::Select": [ 3, { "Fn::Split": [ '.', { "Fn::Select": [ "ip_address", { get_attr: [ port, fixed_ips, 0 ]}]}]}]}
+      flavor: { get_param: flavor }
+      image: { get_param: image }
+      key_name: { get_param: key }
+      availability_zone: { get_param: availability_zone }
+      networks:
+        - port: { get_resource: port }
+      user_data_format: SOFTWARE_CONFIG
+      software_config_transport: POLL_SERVER_CFN
+      user_data:
+        str_replace:
+          template: |
+            #!/bin/bash
+            service os-collect-config start
+            #import id_rsa_content
+            # id_rsa
+            mkdir -p /home/ubuntu/.ssh
+            cd /home/ubuntu/.ssh
+            cat > id_rsa << EOF
+            id_rsa_contents
+            EOF
+            #cat > id_rsa.pub << EOF
+            #id_rsa_pub_contents
+            #EOF
+            chown ubuntu:ubuntu id_rsa
+            chmod 600 id_rsa
+            addr=$(/sbin/ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{print $1}')
+            hostname=`hostname -s`
+            echo "${addr}  ${hostname}" >> /etc/hosts
+            touch /var/lib/cloud/instance/userdata-finished
+          params:
+            id_rsa_contents: { get_param:  init_manager_private_key } 
+
+  do_reg:
+    type: OS::Heat::SoftwareDeployment
+    properties:
+      config: { get_param: config }
+      server: { get_resource: s }
+      input_values:
+        manager_ip: { get_param: manager_ip }
+        hostname: { get_attr: [ s, name ] }
+        role: { get_param: role_name }
+        cluster_num: { get_param: cluster_num }
+        cluster_name: { get_param: cluster_name }
+
+outputs:
+  first_address:
+    description: First ip address of the server
+    value: { get_attr: [ s, first_address ] }

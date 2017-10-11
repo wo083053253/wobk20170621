@@ -1,0 +1,144 @@
+heat_template_version: 2013-05-23
+description: logmet security groups
+
+parameters:
+  front_cidr:
+    type: string
+    description: frontend subnet cidr
+    default: 172.16.110.0/24
+  a_any_protocol:
+    type: string
+    description: any protocol on port 22
+    default: 10.143.127.160/27
+  b_any_protocol:
+    type: string
+    description: any protocol on port 22
+    default: 10.143.199.0/24
+  b_front_cidr:
+    type: string
+    description: secondary frontnet cidr
+    default: 10.143.138.144/28
+
+resources:
+  manager_security_group:
+    type: OS::Neutron::SecurityGroup
+    properties:
+      description: Ping and SSH
+      rules:
+      - protocol: icmp
+      - protocol: tcp
+        port_range_min: 22
+        port_range_max: 22
+      - protocol: tcp
+        port_range_min: 8765
+        port_range_max: 8765
+        remote_ip_prefix: { get_param: front_cidr }
+
+  elasticsearch_lb_security_group:
+    type: OS::Neutron::SecurityGroup
+    properties:
+      description: elasticsearch HAProxy nodes security group
+      rules:
+      - protocol: icmp
+      - protocol: tcp
+        port_range_min: 22
+        port_range_max: 22
+        remote_ip_prefix: { get_param: front_cidr }
+      - protocol: tcp
+        port_range_min: 9200
+        port_range_max: 9200
+        remote_ip_prefix: 10.0.0.0/8
+      - protocol: 112
+
+  monitor_security_group:
+    type: OS::Neutron::SecurityGroup
+    properties:
+      description: Monitor node security group
+      rules:
+      - remote_ip_prefix: { get_param: a_any_protocol }
+      - remote_ip_prefix: { get_param: b_any_protocol }
+      - protocol: icmp
+      - protocol: tcp
+        port_range_min: 22
+        port_range_max: 22
+        remote_ip_prefix: { get_param: b_front_cidr }
+      - protocol: tcp
+        port_range_min: 22
+        port_range_max: 22
+        remote_ip_prefix: { get_param: front_cidr }
+      - protocol: tcp
+        port_range_min: 80
+        port_range_max: 80
+        remote_ip_prefix: { get_param: b_front_cidr }
+      - protocol: tcp
+        port_range_min: 443
+        port_range_max: 443
+        remote_ip_prefix: { get_param: b_front_cidr }
+      - protocol: tcp
+        port_range_min: 5000
+        port_range_max: 5001
+        remote_ip_prefix: { get_param: b_front_cidr }
+      - protocol: tcp
+        port_range_min: 9090
+        port_range_max: 9090
+        remote_ip_prefix: { get_param: front_cidr }
+      - protocol: tcp
+        port_range_min: 8080
+        port_range_max: 8081
+        remote_ip_prefix: 10.0.0.0/8
+
+  elasticsearch_security_group:
+    type: OS::Neutron::SecurityGroup
+    properties:
+      description: Elasticsearch servers security group
+      rules:
+      - protocol: icmp
+      - protocol: tcp
+        port_range_min: 22
+        port_range_max: 22
+        remote_ip_prefix: { get_param: front_cidr }
+      - protocol: tcp
+        port_range_min: 9300
+        port_range_max: 9300
+        remote_ip_prefix: { get_param: front_cidr }
+      - protocol: tcp
+        port_range_min: 9200
+        port_range_max: 9200
+        remote_ip_prefix: { get_param: front_cidr }
+
+  logstash_security_group:
+    type: OS::Neutron::SecurityGroup
+    properties:
+      description: Logstash servers security group
+      rules:
+      - protocol: icmp
+      - protocol: tcp
+        port_range_min: 22
+        port_range_max: 22
+        remote_ip_prefix: { get_param: front_cidr }
+      - protocol: tcp
+        remote_group_id:
+        port_range_min: 9300
+        port_range_max: 9300
+        remote_ip_prefix: { get_param: front_cidr }
+
+  logstash_objstore_security_group:
+    type: OS::Neutron::SecurityGroup
+    properties:
+      description: Logstash objstore servers security group
+      rules:
+      - protocol: icmp
+      - protocol: tcp
+        port_range_min: 22
+        port_range_max: 22
+        remote_ip_prefix: { get_param: front_cidr }
+
+outputs:
+  security_group_id:
+    value:
+      manager_security_group: { get_resource: manager_security_group }
+      monitor_security_group: { get_resource: monitor_security_group }
+      elasticsearch_security_group: { get_resource: elasticsearch_security_group }
+      elasticsearch_lb_security_group: { get_resource: elasticsearch_lb_security_group }
+      logstash_security_group: { get_resource: logstash_security_group }
+      logstash_objstore_security_group: { get_resource: logstash_objstore_security_group }

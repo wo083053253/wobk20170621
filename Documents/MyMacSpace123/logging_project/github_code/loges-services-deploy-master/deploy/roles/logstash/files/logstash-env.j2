@@ -1,0 +1,52 @@
+#!/bin/bash
+
+# The ES Cluster name
+export ELASTICSEARCH_CLUSTER=ales
+
+# In case a deploy forgets to set this, set default kafka consumer group = logstash
+export CONSUMER_GROUP_ID=logstash
+
+# Permit the normal logstash configurations to be changed
+# but set the defaults here
+export LS_HEAP_SIZE="2000m"
+export LS_USE_GC_LOGGING=""
+export LS_OPEN_FILES=65536
+export LS_CONSUMER_THREADS=1
+export WORKERS=8
+export FLUSH_SIZE=10000
+
+#STASTD
+export STATSD_HOST=localhost
+export STATSD_PORT=8125
+
+# ENV LS_JAVA_OPTS="-Djava.io.tmpdir=/var/lib/logstash"
+export REBALANCE_MAX_RETRIES=10
+export REBALANCE_BACKOFF_MS=15000
+
+# Monitor Time Interval
+export MONITOR_TIME_INTERVAR="30s"
+
+# Replaced with ansible context
+export TOPIC_ID="{{ KAFKA_TOPIC }}"
+export KAFKA_SERVERS="{{KAFKA_SERVERS}}"
+export CONSUMER_GROUP_ID="{{ consumer_group_id }}"
+export ELASTICSEARCH_CLUSTER="{{ ES_CLUSTER_NAME | default('elasticsearch')}}"
+export ZOOKEEPER_SERVERS="{{ zookeeper_servers }}"
+export TENANTINFO_IP="{{ TENANTINFO_IP }}"
+export TENANTINFO_PORT="{{ TENANTINFO_PORT }}"
+export ELASTICSEARCH_HTTP_NODE_LIST="{{ ELASTICSEARCH_HTTP_NODE_LOGSTASH }}"
+export ELASTICSEARCH_HTTP_LIST="{{ ELASTICSEARCH_HTTP_LIST }}"
+export carbon_relay="{{ carbon_relay }}"
+export GRAPHITE_ENVIRONMENT="{{ graphite_environment }}"
+export METRICS_HOST="{{ metrics_host }}"
+export METRICS_PORT="{{ metrics_port }}"
+export INTERNAL_METRICS_TARGET="{{ metrics_target }}"
+export BLUEMIX_SPACE_ID="{{ metrics_target_spaceid }}"
+export BLUEMIX_LOGGING_TOKEN="{{ metrics_target_token }}"
+export LOGMET_ENVIRONMENT="{{ logmet_environment }}"
+export LS_HEAP_SIZE="{{ logstash_heap_size }}"
+export ESALIAS_ENABLED="{{ ESALIAS_ENABLED }}"
+export ESALIAS_ENABLE_DATE="{{ ESALIAS_ENABLE_DATE }}"
+export MULTI_TOPICS_ENABLED="{{ MULTI_TOPICS_ENABLED }}"
+export MULTI_CLUSTER_ES_ENABLED="{{ MULTI_CLUSTER_ES_ENABLED }}"
+export RENAME_FILTER_ENABLED="{{ RENAME_FILTER_ENABLED }}"

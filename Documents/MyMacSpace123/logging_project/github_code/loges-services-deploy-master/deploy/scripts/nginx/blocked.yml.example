@@ -1,0 +1,11 @@
+# Add blocked URIs to the blocked list
+#
+# blocked:
+#   - /block/this
+#   - /block/that
+#
+# When there are no blocks, create an empty list like this:
+#
+# blocked: []
+
+blocked: []

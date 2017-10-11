@@ -1,0 +1,24 @@
+---
+object_store_type: s3
+session_timeout_ms: 300000
+request_timeout_ms: 400000
+objstore_container_prefix: ""
+logstash_heap_size: 6g
+ls_workers: 16
+ls_batch_size: 500
+logstash_thread_stack_size: 1000k
+kafka_input_plugin_version: 6.3.0
+elasticsearch_output_plugin_version: 6.2.0
+#kafka ssl setting
+KAFKA_SSL_ENABLED: 0
+#source
+KAFKA_SSL_TRUSTSTORE_SOURCE: 'files/kafka/kafka.client.truststore.jks'
+KAFKA_SSL_TRUSTSTORE_TYPE: JKS
+# target
+KAFKA_SSL_TRUSTSTORE_TARGET: '/etc/ssl/certs/kafka.client.truststore.jks'
+KAFKA_SSL_PASSWORD: 'l0gg1ng'
+KAFKA_SSL_ENABLED_PROTOCOLS: TLSv1.2
+#kafka SASL config
+jaas_client_username: client
+jaas_client_password: ei89JKM6
+

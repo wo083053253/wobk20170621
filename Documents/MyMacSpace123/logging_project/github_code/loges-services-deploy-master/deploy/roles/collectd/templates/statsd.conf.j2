@@ -1,0 +1,15 @@
+LoadPlugin statsd
+
+<Plugin statsd>
+    Host {{ STATSD_HOST }}
+	Port {{ STATSD_PORT }}
+	DeleteCounters true
+	DeleteTimers   true
+	DeleteGauges   true
+	DeleteSets     true
+	TimerLower     true
+	TimerUpper     true
+	TimerSum       true
+	TimerCount     true
+	TimerPercentile 99.0
+</Plugin>

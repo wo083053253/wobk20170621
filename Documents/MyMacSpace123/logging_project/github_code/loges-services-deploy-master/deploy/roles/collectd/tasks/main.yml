@@ -1,0 +1,57 @@
+# source.list is appended redstone repo, skip that
+- name: ensure logging sources.list installed
+  sudo_user: root
+  sudo: yes
+  template: dest="/etc/apt/sources.list.d/logging.list" src="sources.list.j2"
+
+- name: transfer scripts to tmp path of the server
+  sudo_user: root
+  sudo: yes
+  template:
+    src: "{{ item.src}}"
+    dest: "{{ item.dest }}"
+    owner: root
+    group: root
+    mode: 0755
+  with_items:
+    - { src: "adjust_repos.sh", dest: "/tmp/adjust_repos.sh" }
+
+- name: run script remotely on the server
+  sudo_user: root
+  sudo: yes
+  script: /bin/bash  /tmp/adjust_repos.sh
+
+- name: Check if mtlumberjack_lb is in /etc/hosts
+  sudo_user: root
+  sudo: yes
+  shell: grep -q "{{ mtlumberjack_lb_ip }}  {{ logs_hostname }}" /etc/hosts
+  register: etc_host_entry
+  failed_when: "etc_host_entry.rc == 2"
+  when: mtlumberjack_lb_ip is defined
+   
+#remove exist DNS entry
+- name: Remove mtlumberjack_lb DNS entry
+  sudo_user: root
+  sudo: yes
+  lineinfile:
+     dest: /etc/hosts
+     regexp: '^{{ mtlumberjack_lb_ip }}'
+     line: '{{ mtlumberjack_lb_ip }} {{ logs_hostname }}'
+     state: absent
+  when: etc_host_entry.rc == 0
+
+#add DNS entry for dev and edge env
+- name: Add mtlumberjack_lb DNS entry
+  sudo_user: root
+  sudo: yes
+  shell: echo "{{ mtlumberjack_lb_ip }}  {{ logs_hostname }}" >> /etc/hosts
+  when: etc_host_entry.rc == 1 and mtlumberjack_lb_ip is defined and ( deploy_environment == "dev" or deploy_environment == "edge" )
+
+- name: Add mtlumberjack_lb DNS entry for prestaging
+  sudo_user: root
+  sudo: yes
+  shell: echo "{{ mtlumberjack_lb_ip }}  {{ logs_hostname }}" >> /etc/hosts
+  when: etc_host_entry.rc == 1 and mtlumberjack_lb_ip is defined and STACK_NAME.find('prestaging') != -1
+  
+- name: ensure collectd is properly configured
+  include: collectd.yml

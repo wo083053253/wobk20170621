@@ -1,0 +1,57 @@
+- name: Download logstash 5.1.x plugin gem packages
+  get_url:
+   url: https://{{ redstone_magic }}@redstone.edge.bluemix.net/image/logstash5.1/{{ item }}
+   dest: /tmp
+  with_items:
+   - logstash-filter-alter-3.0.0.gem
+   - logstash-filter-translate-3.0.1.gem
+   - logstash-filter-json_encode-3.0.0-java.gem
+  when: logstash_ver == "5.1.1"
+
+- name: Download logstash 2.x plugin gem packages
+  get_url:
+   url: https://{{ redstone_magic }}@redstone.edge.bluemix.net/image/logstash2.3/{{ item }}
+   dest: /tmp
+  with_items:
+   - logstash-filter-alter-2.0.5.gem
+   - logstash-filter-json_encode-2.0.4.gem
+   - logstash-filter-translate-2.1.4.gem
+  when: logstash_ver == "2.3.1"
+
+- name: apply patch to fix 5.1.1 logstash bug
+  become: yes
+  copy: src=files/logstash-patch/main.rb dest=/usr/share/logstash/lib/pluginmanager/main.rb
+  when: logstash_ver == "5.1.1"
+
+- name: Install logstash kafka input plugin
+  command: /usr/share/logstash/bin/logstash-plugin install --version {{ item.version }} {{ item.name }}
+  become: yes
+  environment:
+    JRUBY_OPTS: "-J-Djava.security.egd=file:/dev/urandom"
+  with_items:
+    - { version: "{{ kafka_input_plugin_version }}", name: "logstash-input-kafka" }
+    - { version: "{{ elasticsearch_output_plugin_version }}", name: "logstash-output-elasticsearch" }
+  when: logstash_ver == "5.1.1"
+
+- name: Install Logstash 5.1.x plugins
+  command: /usr/share/logstash/bin/logstash-plugin install --local --no-verify /tmp/{{ item }}
+  become: yes
+  environment:
+    JRUBY_OPTS: "-J-Djava.security.egd=file:/dev/urandom"
+  with_items:
+   - logstash-filter-alter-3.0.0.gem
+   - logstash-filter-translate-3.0.1.gem
+   - logstash-filter-json_encode-3.0.0-java.gem
+  when: logstash_ver == "5.1.1"
+
+
+- name: Install Logstash 2.x plugins
+  command: /opt/logstash/bin/logstash-plugin install --local /tmp/{{ item }}
+  become: yes
+  environment:
+    JRUBY_OPTS: "-J-Djava.security.egd=file:/dev/urandom"
+  with_items:
+   - logstash-filter-alter-2.0.5.gem
+   - logstash-filter-json_encode-2.0.4.gem
+   - logstash-filter-translate-2.1.4.gem
+  when: logstash_ver == "2.3.1"

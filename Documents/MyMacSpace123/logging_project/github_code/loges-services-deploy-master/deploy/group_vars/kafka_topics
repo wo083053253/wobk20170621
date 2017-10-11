@@ -1,0 +1,5 @@
+---
+# The number of partitions
+NUMBER_OF_LOG_PARTITIONS: 19
+# The number of replication
+LOG_REPLICATION_FACTOR: 2

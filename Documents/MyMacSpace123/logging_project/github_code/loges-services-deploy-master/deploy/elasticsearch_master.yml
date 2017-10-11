@@ -1,0 +1,11 @@
+- hosts: elasticsearch_master_servers
+  roles:
+    - { role: elasticsearch }
+  vars_files:
+    - group_vars/elasticsearch_master_servers
+  post_tasks:
+    - name: download elasticsearch diagnostics
+      unarchive:
+        src: https://github.com/elastic/elasticsearch-support-diagnostics/releases/download/5.11/support-diagnostics-5.11-dist.zip
+        dest: /usr/share/
+        remote_src: True

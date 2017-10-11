@@ -1,0 +1,101 @@
+heat_template_version: 2013-05-23
+parameters:
+  stack_id:
+    type: string
+    description: Base heat stack id
+  manager_id:
+    type: string
+    description: Nova server ID of new deployed elasticsearch manager node
+  kafka_topic:
+    type: string
+    default: alchemy-logs
+  cluster_num:
+    type: number
+    default: 2
+  weight:
+    type: number
+    default: 0  
+
+resources:
+  ansible_config:
+    type: OS::Heat::SoftwareConfig
+    properties:
+      group: script
+      inputs:
+      - name: kafka_topic
+      - name: cluster_num
+      - name: stack_id
+      - name: elk_stack_id
+      - name: elk_stack_name
+      - name: shard_weight
+      config: |
+        #!/bin/bash
+        cat /opt/deploy/hosts/* > /opt/deploy/hosts/.all
+        chown ubuntu:ubuntu /opt/deploy/hosts/.all        
+        cat /opt/deploy/all_roles >> /var/log/ansible/post_deploy.log
+        echo $kafka_topic > /opt/deploy/kafka_topic
+        chown -R ubuntu:ubuntu /var/log/ansible
+        chown -R ubuntu:ubuntu /opt/deploy/kafka_topic
+        #enable collectd for all
+        echo "Start to deploy collectd at [`date`]" >> /var/log/ansible/post_deploy.log
+        touch /var/log/ansible/collectd.log
+        chown ubuntu:ubuntu /var/log/ansible/collectd.log
+        chmod 666  /var/log/ansible/collectd.log
+        su - ubuntu -c "cd /opt/deploy; ansible-playbook -i /opt/deploy/hosts/.all -vvv /opt/deploy/collectd.yml" >>  /var/log/ansible/collectd.log
+        echo "End to deploy collectd at [`date`]" >> /var/log/ansible/post_deploy.log
+        echo "$elk_stack_id" > /opt/deploy/shard_id
+        echo "$elk_stack_id" > /opt/deploy/elk_stack_id
+        echo "$stack_id" > /opt/deploy/base_stack_id
+        echo "$shard_weight" > /opt/deploy/shard_weight
+        #run each role
+        while read -r line; do
+          [ "$line" != "#end" ] && role="$line" || break
+          echo "Start to deploy $role at [`date`]" >> /var/log/ansible/post_deploy.log
+          touch /var/log/ansible/${role}.log
+          chown ubuntu:ubuntu /var/log/ansible/${role}.log
+          chmod 666  /var/log/ansible/${role}.log          
+          su - ubuntu -c "/opt/deploy/scripts/config_cluster.sh $role --cluster-num $cluster_num --config-stack false --batch-size 100% --dependencies false" >> /var/log/ansible/${role}.log
+          echo "End to deploy $role at [`date`]" >> /var/log/ansible/post_deploy.log
+        done < "/opt/deploy/all_roles"
+
+        echo "Start at [`date`]" >> /var/log/ansible/post_deploy.log        
+        echo "Kafka Topic Creation for logs, check playbook.log for details" >> /var/log/ansible/post_deploy.log
+        touch /var/log/ansible/kafka_createtopics.log
+        chown ubuntu:ubuntu /var/log/ansible/kafka_createtopics.log
+        chmod 666  /var/log/ansible/collectd.log
+        su - ubuntu -c "cd /opt/deploy; ansible-playbook -vvv -i /opt/deploy/hosts/.all /opt/deploy/kafka_createtopics.yml --extra-vars "kafkaTopic=$kafka_topic" " >> /var/log/ansible/kafka_createtopics.log
+        su - ubuntu -c "cd /opt/deploy; ansible-playbook -vvv -i /opt/deploy/hosts/.all /opt/deploy/kafka_createtopics.yml --extra-vars "kafkaTopic=swift-restore-$kafka_topic" " >> /var/log/ansible/kafka_createtopics.log
+        su - ubuntu -c "cd /opt/deploy; ansible-playbook -vvv -i /opt/deploy/hosts/.all /opt/deploy/kafka_createtopics.yml --extra-vars "kafkaTopic=swift-restore-progress-$kafka_topic" --extra-vars "NUMBER_OF_LOG_PARTITIONS=1" --extra-vars "LOG_REPLICATION_FACTOR=2" " >> /var/log/ansible/kafka_createtopics.log
+
+        # Add the Elasticsearch template into ES
+        su - ubuntu -c "ansible-playbook -vvv -b -i /opt/deploy/hosts/.all /opt/deploy/es_config.yml >> /var/log/ansible/playbook.log" &>> /var/log/ansible/post_deploy.log
+
+        #Register the shard after the deployment
+        /opt/deploy/scripts/register_shard.sh $elk_stack_name $elk_stack_id $kafka_topic $stack_id
+        if [ $? == 0 ]; then
+          echo "successfully register shard to kafka service!" >> /var/log/ansible/post_deploy.log
+        else
+          echo "fail to register_shard to kafka service!" >> /var/log/ansible/post_deploy.log
+        fi
+        #Update the base kafka shard
+        /opt/deploy/scripts/update_kafka_shard.sh "$stack_id"
+        #update logging token
+        /opt/deploy/scripts/update_logging_token.sh
+        #Run mt_lsf playbook
+        su - ubuntu -c "ansible-playbook -i /opt/deploy/hosts/.all -vvv /opt/deploy/mt_lsf.yml  >> /var/log/ansible/mt_lsf.log" >> /var/log/ansible/post_deploy.log
+        # mark post-deploy completed
+        touch /opt/deploy/.POST_DEPLOY_COMPLETED
+
+  do_ansible_config:
+    type: OS::Heat::SoftwareDeployment
+    properties:
+      config:
+        get_resource: ansible_config
+      server: { get_param: manager_id }
+      input_values:
+        kafka_topic: { get_param: kafka_topic }
+        cluster_num: { get_param: cluster_num }
+        stack_id: { get_param: stack_id }
+        elk_stack_id: { get_param: "OS::stack_id" }
+        elk_stack_name: { get_param: "OS::stack_name" }
+        shard_weight: { get_param: weight }

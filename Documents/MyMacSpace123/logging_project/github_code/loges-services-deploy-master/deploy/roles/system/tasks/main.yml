@@ -1,0 +1,36 @@
+- name: upgrade system
+  sudo: yes
+  sudo_user: root
+  apt:
+    update_cache: yes
+    upgrade: dist
+
+- name: automatic fsck when reboot
+  sudo: yes
+  sudo_user: root
+  lineinfile:
+    dest: /etc/default/rcS
+    regexp: 'FSCKFIX'
+    line: 'FSCKFIX=yes'
+
+- name: correct options in fstab
+  sudo: yes
+  sudo_user: root
+  lineinfile:
+    dest: /etc/fstab
+    regexp: '^LABEL=cloud-rootfs'
+    line: 'LABEL=cloud-rootfs      /        auto    errors=remount-ro        0 1'
+
+
+- name: force fsck in grub
+  sudo: yes
+  sudo_user: root
+  lineinfile:
+    dest: /etc/default/grub.d/50-cloudimg-settings.cfg
+    regexp: '^GRUB_CMDLINE_LINUX_DEFAULT'
+    line: 'GRUB_CMDLINE_LINUX_DEFAULT="console=tty1 console=ttyS0 fsck.mode=force fsck.repair=yes"'
+
+- name: update grub and ramdisk
+  sudo: yes
+  sudo_user: root
+  shell: 'update-grub; mkinitramfs -o /boot/initrd.img-$(uname -r)'

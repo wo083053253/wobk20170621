@@ -1,0 +1,87 @@
+---
+- name: make sure the configuration file directory is exist
+  sudo_user: root
+  sudo: yes
+  file:
+    path: "{{ item }}"
+    recurse: yes
+    state: directory
+  with_items:
+    - "/etc/collectd/collectd.conf.d/"
+
+- name: set BufferSize for mtlumberjack_servers
+  set_fact:
+    BufferSize: "128000"
+  when:
+    - groups['mtlumberjack_servers'] is defined and inventory_hostname in groups['mtlumberjack_servers']
+    
+- name: prepare the configuration files for collectd
+  sudo_user: root
+  sudo: yes
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: root
+    group: root
+    mode: 0644
+  with_items:
+    - { src: "statsd.conf.j2", dest: "/etc/collectd/collectd.conf.d/statsd.conf" }
+    - { src: "collectd.conf.j2", dest: "/etc/collectd/collectd.conf" }
+
+- name: prepare the mt-metrics-writer configuration file
+  sudo_user: root
+  sudo: yes
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: root
+    group: root
+    mode: 0644
+  with_items:
+    - { src: "mt-metrics-writer.conf.j2", dest: "/etc/collectd/collectd.conf.d/mt-metrics-writer.conf" }
+
+#install psutil
+- name: Install python packages
+  sudo_user: root
+  sudo: yes
+  pip: name={{item}}
+  with_items:
+     - psutil
+
+#install ibm-crn plugin
+- name: install logstash forward and write-mtlumberjack plugins
+  sudo_user: root
+  sudo: yes
+  apt: pkg={{ item }}
+  with_items:
+     - collectd-write-mtlumberjack
+     - collectd-ibmcrn
+
+- name: remove the old configuration template
+  sudo_user: root
+  sudo: yes
+  file:
+    path: /etc/collectd/collectd.conf.d/mt-metrics-writer.conf.sample
+    state: absent
+
+#we don't need this service setup and startup individually
+#metrics plugin is added in collectd.
+- name: remove mt-metrics-writer-config service file
+  sudo_user: root
+  sudo: yes
+  file:
+    path: /lib/systemd/system/mt-metrics-writer-config.service
+    state: absent
+
+- name: enable auto startup
+  sudo_user: root
+  sudo: yes
+  script: /bin/systemctl enable collectd
+
+- name: restart collectd
+  sudo_user: root
+  sudo: yes
+  service:
+    name: collectd
+    enabled: yes
+    state: restarted

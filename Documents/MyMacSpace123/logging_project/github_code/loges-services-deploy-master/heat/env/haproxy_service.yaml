@@ -1,0 +1,70 @@
+heat_template_version: 2014-10-16
+parameters:
+  flavor:
+    type: json
+    description: flavor used by the web servers
+  images:
+    type: json
+    description: images names for default elasticsearch
+  frontend_network:
+    type: string
+    description: internal network of the group
+    default: 0e236d1b-bd39-433b-b0cc-5f084ddb27ce
+  elasticsearch_lb_security_group:
+    type: string
+    description: Resource ID for the elasticsearch_lb_security_group
+  config:
+    type: string
+    description: register software config
+  manager_ip:
+    type: string
+    description: Fixed IP address of the manager node
+  min_size:
+    type: json
+    description: min size
+  availability_zone:
+    type: json
+    description: Availability zone for the hypervisor
+  init_manager_private_key:
+    type: string
+    description: SSH private key to connect to initial manager    
+  cluster_name:
+    type: string
+    default: elasticsearch_1
+  cluster_num:
+    type: number
+    default: 1
+  server_group:
+    type: string
+    description: loadbalance group for anti-affinity
+
+resources:
+  elasticsearch_lb:
+    type: IBM::Logmet::HAProxyInternal
+    properties:
+      role_name: "elasticsearch_lb"
+      role_list: "elasticsearch_lb"
+      flavor: { get_param: [ flavor, elasticsearch_lb ] }
+      image: { get_param: [ images, default ] }
+      frontend_network: { get_param: frontend_network }
+      manager_ip: { get_param: manager_ip }
+      min_size: { get_param: [ min_size, elasticsearch_lb ] }
+      security_group: { get_param: elasticsearch_lb_security_group }
+      config: { get_param: config }
+      availability_zone: { get_param: [ availability_zone, default ] }
+      init_manager_private_key: { get_param:  init_manager_private_key }
+      cluster_name: { get_param: cluster_name }
+      cluster_num: { get_param: cluster_num }
+      server_group: { get_param: server_group }
+
+outputs:
+  elasticsearch_lb_vip:
+    description: HAProxy virtual IPs
+    value:
+      lb_vip: { get_attr: [ elasticsearch_lb, lb_ip ] }
+
+  scale_urls:
+    description: Scale URLs for HAProxy
+    value:
+      elasticsearch_lb_up: { get_attr: [ elasticsearch_lb, scale_up_url ] }
+      elasticsearch_lb_dn: { get_attr: [ elasticsearch_lb, scale_dn_url ] }

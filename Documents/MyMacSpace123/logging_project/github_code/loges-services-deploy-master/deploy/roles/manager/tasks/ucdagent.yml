@@ -1,0 +1,45 @@
+---
+
+
+- name: check if ucdagent is installed
+  sudo_user: root
+  sudo: yes
+  stat: path=/opt/ibm-ucdagent/bin/agent
+  register: agentInstalled
+
+- name: ensure ucdagent is stopped if currently installed
+  sudo_user: root
+  sudo: yes
+  shell: /opt/ibm-ucdagent/bin/agent stop
+  when: agentInstalled.stat.exists == True
+
+- name: Update apt cache if not done today
+  become: yes
+  apt: update_cache=yes cache_valid_time=3600
+
+- name: Uninstall ucdagent deb
+  sudo_user: root
+  sudo: yes
+  apt: pkg={{ item }} state=absent purge=yes
+  with_items:
+    - ibm-ucdagent
+
+- name: Install ibm-ucdagent deb
+  sudo_user: root
+  sudo: yes
+  apt: pkg={{ item }} state=latest
+  with_items:
+    - ibm-ucdagent
+
+- name: Run ucdagent-static-config script
+  sudo_user: root
+  sudo: yes
+  shell: /usr/local/bin/ucdagent-static-config.sh
+
+- name: Run ucdagent-dynamic-config script with configuration parameters
+  sudo_user: root
+  sudo: yes
+  environment:
+    IN_CONTAINER: "0"
+  shell: /usr/local/bin/ucdagent-dynamic-config.sh
+

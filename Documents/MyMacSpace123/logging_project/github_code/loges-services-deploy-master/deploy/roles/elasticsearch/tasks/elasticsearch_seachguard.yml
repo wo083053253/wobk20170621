@@ -1,0 +1,35 @@
+---
+#copy SSL certificates and auto script
+- name: Create temp folder for searchguard Configure
+  file: path=/tmp/sg-es-configuration state=directory
+
+- name: Copy ssl certificates to tmp folder on deploy nodes
+  copy: src={{ scriptsdir }}/sg-es-configuration/cert_generation/{{ item }} dest=/tmp/sg-es-configuration
+  with_items:
+    - node-{{ serverid }}-keystore.jks
+    - truststore.jks
+    - client-keystore.jks
+
+- name: Copy auto config script to tmp folder on deploy nodes
+  copy: src={{ scriptsdir }}/sg-es-configuration/config_sg_es.sh dest=/tmp/sg-es-configuration
+
+##Install searchguard plugins
+#- name: Install searchguard plugins
+#  shell: sudo /usr/share/elasticsearch/bin/elasticsearch-plugin install -b com.floragunn:search-guard-5:5.1.1-15
+
+- name: Check if searchguard plugin installed suceess
+  stat: path={{ sgplugindir }}
+  register: sgpldir_existed
+
+#run auto config script to config elasticsearch and searchguard
+- name: Run auto config script to config elasticsearch and searchguard
+  shell: sh /tmp/sg-es-configuration/config_sg_es.sh {{ serverid }} {{ passwd }}
+  when: sgpldir_existed.stat.exists == true
+
+- name: Check if sgadmin initial file exists
+  stat: path=/tmp/sg-es-configuration/sgadmin_initial.sh
+  register: file_existed
+
+- name: Run sgadmin initial
+  shell: sh /tmp/sg-es-configuration/sgadmin_initial.sh
+  when: file_existed.stat.exists == true

@@ -1,0 +1,6 @@
+- hosts: logstash_servers
+  serial: "{{ rolling_update_batch_size }}"
+  roles:
+    - logstash
+  vars_files:
+    - group_vars/logstash_servers

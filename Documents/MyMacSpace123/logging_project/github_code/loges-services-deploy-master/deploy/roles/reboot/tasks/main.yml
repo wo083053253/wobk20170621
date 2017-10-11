@@ -1,0 +1,21 @@
+- set_fact:
+    real_ansible_host: "{{ ansible_host }}"
+
+- name: reboot hosts
+  shell: sleep 3 && shutdown -r now
+  async: 1
+  poll: 0
+  ignore_errors: true
+  become: true
+
+- name: wait for hosts to go down
+  local_action:
+    wait_for host={{ real_ansible_host }}
+    port=22 state=absent delay=1 timeout=120
+  become: false
+
+- name: wait for hosts to come back up
+  local_action:
+    wait_for host={{ real_ansible_host }}
+    port=22 state=started delay=30 timeout=120
+  become: false

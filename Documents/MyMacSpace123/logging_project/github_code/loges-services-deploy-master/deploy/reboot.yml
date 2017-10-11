@@ -1,0 +1,4 @@
+- hosts: all
+  serial: "{{ rolling_update_batch_size }}"
+  roles:
+  - reboot

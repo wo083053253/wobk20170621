@@ -1,0 +1,76 @@
+heat_template_version: 2014-10-16
+parameters:
+  key:
+    type: string
+    description: SSH key to connect to the servers
+    default: heat_key
+  flavor:
+    type: json
+    description: flavor used by the web servers
+  images:
+    type: json
+    description: images names for default elasticsearch
+  internal_network:
+    type: string
+    description: internal network of the group
+  external_network:
+    type: string
+  security_group:
+    type: string
+    description: Security groups for manager node
+  availability_zone:
+    type: json
+    description: availability_zone
+  init_manager_private_key:
+    type: string
+    description: SSH private key to connect to initial manager
+  redstone_magic:
+    description: redstone access magic word
+    type: string
+    hidden: true
+    default: reddiamond:wsaq!23e
+  apt_repo:
+    description: aptly publish repository
+    type: string
+    default: logging
+  environment:
+    description: stack deploy environment
+    type: string
+    default: dev
+  carbonrelay:
+    description: carbonrelay IP address
+    type: string
+    default: 10.176.109.169
+  kafka_service_url:
+    type: string
+    description: kafka service url
+  kafka_shard_id:
+    type: string
+    description: kafka shard id
+
+resources:
+  manager:
+    type: IBM::Logmet::Manager
+    properties:
+      flavor: { get_param: [ flavor, manager ] }
+      image: { get_param: [ images, default ] }
+      internal_network: { get_param: internal_network }
+      external_network: { get_param: external_network }
+      security_group: { get_param:  security_group }
+      availability_zone: { get_param: [ availability_zone, default ] }
+      role_name: manager
+      init_manager_private_key: { get_param:  init_manager_private_key }
+      apt_repo: { get_param: apt_repo }
+      redstone_magic: { get_param: redstone_magic }
+      environment:  { get_param: environment }
+      carbonrelay:  { get_param: carbonrelay }
+      kafka_service_url: { get_param: kafka_service_url }
+      kafka_shard_id: { get_param: kafka_shard_id }
+
+outputs:
+  metadata:
+    value:
+      manager_ip: { get_attr: [ manager, first_address ] }
+      manager_id: { get_attr: [ manager, manager_id ] }
+      security_group: { get_attr: [ manager, security_group ] }
+      config: { get_attr: [ manager, config ] }

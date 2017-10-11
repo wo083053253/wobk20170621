@@ -1,0 +1,12 @@
+- hosts: manager
+  tasks:
+  - name: Generate SSL certificates for searchguard
+    shell: sh {{ scriptsdir }}/sg-es-configuration/cert_generation/generate_ssl_cert.sh {{ serverid }} {{ clientid }} {{ passwd }}
+  vars_files:
+    - group_vars/elasticsearch_searchguard
+
+- hosts: elasticsearch_master_servers, elasticsearch_data_hot_servers, elasticsearch_data_warm_servers, elasticsearch_http_servers
+  roles:
+    - { role: elasticsearch, tags: [ 'plugins','seachguard' ] }
+  vars_files:
+    - group_vars/elasticsearch_searchguard

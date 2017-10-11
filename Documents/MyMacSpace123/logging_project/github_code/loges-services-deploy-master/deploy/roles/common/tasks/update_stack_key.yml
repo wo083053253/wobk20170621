@@ -1,0 +1,19 @@
+- name: Check the existence of private stack key
+  stat: path=/home/stack/.ssh/id_rsa
+  register: private_key
+  
+- name: remove the default private stack key
+  shell: rm /home/stack/.ssh/id_rsa
+  when: private_key.stat.exists == true
+
+- name: remove the default public stack key
+  shell: rm /home/stack/.ssh/id_rsa.pub  
+  when: private_key.stat.exists == true
+
+- name: remove the authorized_keys file
+  shell: rm /home/stack/.ssh/authorized_keys  
+  when: private_key.stat.exists == true  
+
+- authorized_key: user=stack key="{{ lookup('file', '/opt/deploy/files/stack_key.pub') }}" state=present
+  when: private_key.stat.exists == true
+

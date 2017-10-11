@@ -1,0 +1,27 @@
+input {
+  edge_s3 {
+   group_id => "logstash_restore"
+   decorate_events => false
+   bootstrap_servers => "{{ kafka_servers }}"
+   objects_thread_pool => {{ objects_thread_pool }}
+   access_key_id => "{{ AWS_ACCESS_KEY_ID }}"
+   secret_access_key => "{{ AWS_SECRET_ACCESS_KEY }}"
+   bucket => "{{ S3_BUCKET_NAME }}"
+   topics => "swift-restore-{{ KAFKA_TOPIC }}"
+   consumer_threads => 1
+   auto_offset_reset => "latest"
+   session_timeout_ms => "{{ session_timeout_ms }}"
+   request_timeout_ms => "{{ request_timeout_ms }}"
+   codec => "json"
+   {% if KAFKA_SSL_ENABLED is defined and KAFKA_SSL_ENABLED == 1 %}
+   security_protocol => "SASL_SSL"
+   sasl_mechanism => "PLAIN"
+   jaas_path => "/etc/logstash/kafka_client_jaas.conf"
+   ssl_truststore_location => "{{ KAFKA_SSL_TRUSTSTORE_TARGET }}"
+   ssl_truststore_password => "{{ KAFKA_SSL_PASSWORD }}"
+   ssl_truststore_type => "{{ KAFKA_SSL_TRUSTSTORE_TYPE }}"
+   {% endif %}
+  }
+
+}
+

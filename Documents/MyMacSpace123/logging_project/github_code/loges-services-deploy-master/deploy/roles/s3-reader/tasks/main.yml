@@ -1,0 +1,75 @@
+---
+
+- name: check supervisor service status
+  sudo_user: root
+  sudo: yes
+  stat: path=/etc/supervisor/supervisord.conf
+  register: super
+
+- name: Ensure supervisor service stopped for upgrade
+  sudo_user: root
+  sudo: yes
+  service: name=supervisor state=stopped
+  when: rolling_update_batch_size is defined and rolling_update_batch_size == "1" and super.stat.exists == True
+
+#ps -ef | grep java | grep -v grep | awk '{print $2}' | xargs kill -9
+- name: clean java process
+  sudo_user: root
+  sudo: yes
+  shell: ps -ef | grep java | grep -v grep | awk '{print $2}' | xargs kill -9
+  when: rolling_update_batch_size is defined and rolling_update_batch_size == "1"
+
+- name: remove plugins
+  sudo_user: root
+  sudo: yes
+  apt: pkg={{ item }} state=absent
+  with_items:
+     - ibm-logging-logstash-input-edge-s3-logstash{{ logstash_ver[0:1] }}=*
+     - ibm-logging-logstash-filter-cluster-logstash{{ logstash_ver[0:1] }}=*
+  when: rolling_update_batch_size is defined and rolling_update_batch_size == "1" and super.stat.exists == True
+
+- name: Update apt cache if not done today
+  become: yes
+  apt: update_cache=yes cache_valid_time=3600
+
+# Skip custom filters, trying to deprecate them
+#install custom-filters deb pacakge
+#- name: install custom-filters
+#  sudo_user: root
+#  sudo: yes
+#  apt: pkg={{ item }}
+#  with_items:
+#     - custom-filters
+
+# the static script will install openjdk, logstash, haveged, common and s3-reader filters
+- name: Run s3-reader-static-config script
+  sudo_user: root
+  sudo: yes
+  shell: /usr/local/bin/s3-writer-static-config.sh
+
+# the dynamic script will setup correct configuration based on environment variables
+- name: Run s3-reader-dynamic-config script (modifying logstash parameters)
+  sudo_user: root
+  sudo: yes
+  shell: /usr/local/bin/s3-writer-dynamic-config.sh
+  environment:
+    GROUP_ID: logstash_objstore
+    METRICS_HOST: "{{ metrics_host }}"
+    METRICS_PORT: "{{ metrics_port }}"
+    INTERNAL_METRICS_TARGET: "{{ metrics_target }}"
+    BLUEMIX_SPACE_ID: "{{ metrics_target_spaceid }}"
+    BLUEMIX_LOGGING_TOKEN: "{{ metrics_target_token }}"
+    LOGMET_ENVIRONMENT: "{{ logmet_environment }}"
+    LOGSTASH_HEAP_SIZE: "{{ logstash_thread_stack_size }}"
+    LS_OPEN_FILES: 65536
+    LS_CONSUMER_THREADS: 1
+    KAFKA_SERVERS: "{{ kafka_servers }}"
+    OBJECTS_THREAD_POOL: "{{ objects_thread_pool }}"
+    AWS_ACCESS_KEY_ID: "{{ AWS_ACCESS_KEY_ID }}"
+    AWS_SECRET_ACCESS_KEY: "{{ AWS_SECRET_ACCESS_KEY }}"
+    S3_BUCKET_NAME: "{{ S3_BUCKET_NAME }}"
+    TOPIC_ID: "swift-restore-{{ KAFKA_TOPIC }}"
+    SESSION_TIMEOUT_MS: "{{ session_timeout_ms }}"
+    REQUEST_TIMEOUT_MS: "{{ request_timeout_ms }}"
+    ELASTICSEARCH_HTTP_NODE_LOGSTASH: "{{ ELASTICSEARCH_HTTP_NODE_LOGSTASH }}"
+    FLUSH_SIZE: "{{ flush_size }}"

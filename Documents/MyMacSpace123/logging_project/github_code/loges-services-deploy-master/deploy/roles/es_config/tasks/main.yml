@@ -1,0 +1,72 @@
+- name: create the temp directory
+  sudo_user: root
+  sudo: yes
+  file:
+    path:  "/tmp/esconfig"
+    state: directory
+    mode: 0755
+
+- name: copy the Kibana template file
+  sudo_user: root
+  sudo: yes
+  copy:
+    src: "kibana.json"
+    dest: "/tmp/esconfig"
+    owner: root
+    group: root
+    mode: 0644
+
+
+- name: copy the Elasticsearch template file
+  sudo_user: root
+  sudo: yes
+  copy:
+    src: "elasticsearch-template.json"
+    dest: "/tmp/esconfig"
+    owner: root
+    group: root
+    mode: 0644
+    
+- name: create the scrpit file
+  sudo_user: root
+  sudo: yes
+  template:
+    src: "create-templates.sh.j2"
+    dest: "/tmp/esconfig/create-templates.sh"
+    owner: root
+    group: root
+    mode: 0755
+
+- name: add the Elasticsearch template file
+  sudo_user: root
+  sudo: yes
+  shell: ./create-templates.sh /tmp/esconfig
+  args:
+    chdir: /tmp/esconfig
+
+- name: copy the Elasticsearch setting file
+  sudo_user: root
+  sudo: yes
+  copy:
+    src: "elasticsearch-settings"
+    dest: "/tmp/esconfig"
+    owner: root
+    group: root
+    mode: 0644
+
+- name: create the elasticsearch setting scrpit file
+  sudo_user: root
+  sudo: yes
+  template:
+    src: "elasticsearch-cluster-settings.sh.j2"
+    dest: "/tmp/esconfig/elasticsearch-cluster-settings.sh"
+    owner: root
+    group: root
+    mode: 0755
+
+- name: add Elasticsearch settings
+  sudo_user: root
+  sudo: yes
+  shell: ./elasticsearch-cluster-settings.sh
+  args:
+    chdir: /tmp/esconfig

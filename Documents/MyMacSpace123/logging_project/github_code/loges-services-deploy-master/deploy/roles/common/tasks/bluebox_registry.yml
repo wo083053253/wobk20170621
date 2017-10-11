@@ -1,0 +1,22 @@
+- name: Check if the Bluebox Docker repo is in /etc/hosts
+  sudo_user: root
+  sudo: yes
+  shell: grep -q "169.45.100.59  registry.bluebox.net" /etc/hosts
+  register: etc_host_entry
+  failed_when: "etc_host_entry.rc == 2"
+
+- name: Add the Bluebox Docker repo DNS entry
+  sudo_user: root
+  sudo: yes
+  shell: echo "169.45.100.59  registry.bluebox.net" >> /etc/hosts
+  when: etc_host_entry.rc == 1
+
+- name: Create the Bluebox cert directory
+  sudo_user: root
+  sudo: yes
+  shell: mkdir -p /etc/docker/certs.d/registry.bluebox.net:5000/
+
+- name: Copy the Bluebox Docker repo
+  sudo_user: root
+  sudo: yes
+  copy: src=/opt/deploy/files/registry.bluebox.crt dest=/etc/docker/certs.d/registry.bluebox.net:5000/

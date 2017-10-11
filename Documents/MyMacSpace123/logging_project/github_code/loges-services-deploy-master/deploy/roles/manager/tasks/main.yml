@@ -1,0 +1,228 @@
+- name: copy aws config files
+  sudo_user: root
+  sudo: yes
+  copy: src=/opt/deploy/files/aws/ dest=/home/stack/aws/ owner=root group=root mode=0644
+
+- name: create logmet-utils working directory
+  sudo_user: root
+  sudo: yes
+  file:
+    path: /var/log/logmet-utils
+    state: directory
+    recurse: yes
+    owner: root
+
+- name: install supervisor
+  sudo_user: root
+  sudo: yes
+  apt:
+    name: supervisor
+    state: latest
+
+- name: install triage
+  sudo_user: root
+  sudo: yes
+  apt:
+    name: triage-deploy
+    state: latest
+
+- name: Install python packages
+  sudo_user: root
+  sudo: yes
+  pip: name={{item}}
+  with_items:
+    - collectd-haproxy
+    - cherrypy
+    - statsd
+    - routes
+
+- name: install python dateutil
+  sudo_user: root
+  sudo: yes
+  apt:
+    name: python-dateutil
+    state: latest
+
+- name: install python requests
+  sudo_user: root
+  sudo: yes
+  apt:
+    name: python-requests
+    state: latest
+    
+- name: Install the ucdagent
+  include: ucdagent.yml
+
+- name: Ensure supervisor service
+  sudo_user: root
+  sudo: yes
+  service: name=supervisor state=restarted
+
+- name: Copy the performance configuration file to the remote node
+  sudo_user: root
+  sudo: yes
+  copy: src=files/supervisord/performanceMetrics.conf dest=/etc/supervisor/conf.d/performanceMetrics.conf owner=root group=root mode=0644
+
+
+# Enable triage cronjobs
+- pip:
+    name: elasticsearch
+
+- pip:
+    name: jmespath
+
+- pip:
+    name: jsondiff
+
+- cron:
+    name: create daily index
+    minute: "00"
+    hour: "22"
+    day: "*"
+    month: "*"
+    user: ubuntu
+    job: "sudo python /opt/util/createDailyIndex.py -cluster {{ CLUSTER_NUM }} -minShards {{ HOT_NODE_NUM }} -numReplicas 1 -logLevel DEBUG -conductorMap /opt/deploy/files/conductors-map.json"
+
+# - cron:
+#     name: enable elasticsearch rebalance
+#     minute: "45"
+#     hour: "00"
+#     day: "*"
+#     month: "*"
+#     user: ubuntu
+#     job: "sudo /bin/bash /opt/triage/elasticsearch_rebalance.sh 3 all --cluster {{ CLUSTER_NUM }} {{ LOGGING_ENV }}"
+
+# - cron:
+#     name: disable elasticsearch rebalance
+#     minute: "45"
+#     hour: "01"
+#     day: "*"
+#     month: "*"
+#     user: ubuntu
+#     job: "sudo /bin/bash /opt/triage/elasticsearch_rebalance.sh 0 none --cluster {{ CLUSTER_NUM }} {{ LOGGING_ENV }}"
+
+#- cron:
+#    name: check disk capacity
+#    minute: "*/60"
+#    hour: "*"
+#    day: "*"
+#    month: "*"
+#    user: ubuntu
+#    job: "sudo /bin/bash /opt/triage/diskCapacity_cron.sh --conf /opt/triage/thresholds.conf --cluster {{ CLUSTER_NUM }} --env {{ LOGGING_ENV }}"
+#
+#- cron:
+#    name: elasticsearch defragment
+#    minute: "0"
+#    hour: "7"
+#    day: "*"
+#    month: "*"
+#    user: ubuntu
+#    job: "sudo python /opt/util/elasticsearch-defragment.py --cluster {{ CLUSTER_NUM }} --fragmentationThreshold 40.0 --defragInterval 1800 --sleepInterval 180 --loadThreshold 9.0 --fragmentationSkipThreshold 30"
+#
+#- cron:
+#    name: elasticsearch fragmentation check
+#    minute: "*/15"
+#    hour: "*"
+#    day: "*"
+#    month: "*"
+#    user: ubuntu
+#    job: "sudo /bin/bash /opt/util/elasticsearch-fragmentation-check.sh --cluster {{ CLUSTER_NUM }}"
+#
+#- cron:
+#    name: check elasticsearch cluster state
+#    minute: "00"
+#    hour: "08,20"
+#    day: "*"
+#    month: "*"
+#    user: ubuntu
+#    job: "sudo /bin/bash /opt/triage/esClusterState.sh 300 {{ LOGGING_ENV }}"
+#
+#- cron:
+#    name: check shard allocation
+#    minute: "30"
+#    hour: "18"
+#    day: "*"
+#    month: "*"
+#    user: ubuntu
+#    job: "sudo /bin/bash /opt/triage/check-shard-allocations.sh --cluster {{ CLUSTER_NUM }}"
+#
+#- cron:
+#    name: run elasticsearch diagostics and collect logs
+#    minute: "05"
+#    hour: "12"
+#    day: "*"
+#    month: "*"
+#    user: ubuntu
+#    job: "sudo /bin/bash /opt/util/collect-es-logs.sh --diagnostics --cluster {{ CLUSTER_NUM }}"
+
+- cron:
+    name: clear elasticsesarch cache
+    minute: "0"
+    hour: "*/2"
+    day: "*"
+    month: "*"
+    user: ubuntu
+    job: "sudo /bin/bash /opt/triage/es-cache-clear.sh --cluster {{ CLUSTER_NUM }} {{ LOGGING_ENV }}"
+
+#- cron:
+#    name: check tenants using elasticsearch
+#    minute: "30"
+#    hour: "11"
+#    day: "*"
+#    month: "*"
+#    user: ubuntu
+#    job: "sudo python /opt/triage/find_idle_tenants.py"
+#
+#- cron:
+#    name: check elasticsesarch gc status
+#    minute: "*/20"
+#    hour: "*"
+#    day: "*"
+#    month: "*"
+#    user: ubuntu
+#    job: "sudo python /opt/triage/elasticsearch_gc_check.py"
+#
+#- cron:
+#    name: check elasticsesarch status
+#    minute: "*/05"
+#    hour: "*"
+#    day: "*"
+#    month: "*"
+#    user: ubuntu
+#    job: "sudo /bin/bash /opt/triage/alert-on-node-drop.sh {{ LOGGING_ENV }} --cluster {{ CLUSTER_NUM }}"
+#
+- cron:
+    name: check ping all nodes from elk manager node
+    minute: "*/10"
+    hour: "*"
+    day: "*"
+    month: "*"
+    user: ubuntu
+    job: "sudo /bin/bash /opt/triage/pingTest.sh {{ LOGGING_ENV }}"
+
+#- cron:
+#    name: delete logs for over 7 days
+#    minute: "30"
+#    hour: "00"
+#    day: "*"
+#    month: "*"
+#    user: ubuntu
+#    job: "sudo find /var/log/logmet-utils/*.log -mmin +$((60*24*7)) -type f -delete"
+
+#- cron:
+#    name: delete cluster state logs for over 7 days
+#    minute: "35"
+#    hour: "00"
+#    day: "*"
+#    month: "*"
+#    user: ubuntu
+#    job: "sudo find /var/log/logmet-utils/cluster-state-*.txt -mmin +$((60*24*7)) -type f -delete"
+#
+#- cron:
+#    name: delete es.tar.gz logs for over 7 days
+#    minute: "40"
+#    hour: "00"
+#    day: "*"
+#    month: "*"
+#    user: ubuntu
+#    job: "sudo find /tmp/collect-es-logs/*.tar.gz -mmin +$((60*24*7)) -type f -delete"

@@ -1,0 +1,1 @@
+COLLECTDTIMESTAMP \[%{YEAR:year}-%{MONTHNUM:month}-%{MONTHDAY:day}\ %{HOUR:hour}:%{MINUTE}:%{SECOND:seconds}\]

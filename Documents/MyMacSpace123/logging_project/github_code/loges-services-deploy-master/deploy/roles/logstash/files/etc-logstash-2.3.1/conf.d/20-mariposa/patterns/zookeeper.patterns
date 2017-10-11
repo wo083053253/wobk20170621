@@ -1,0 +1,1 @@
+ZOOKEEPERTIMESTAMP \[%{YEAR:year}-%{MONTHNUM:month}-%{MONTHDAY:day}\ %{HOUR:hour}:%{MINUTE}:%{NUMBER:seconds},%{NUMBER:milliseconds}\]

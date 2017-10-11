@@ -1,0 +1,27 @@
+- hosts: nginx_servers
+  become: true
+  become_user: root
+
+  tasks:
+  - name: See if include is in alogmon.conf
+    shell: docker exec -it nginx bash -c "grep 'include /etc/nginx/block_list.conf;' /etc/nginx/conf.d/alogmon.conf"
+    register: grep_command
+    ignore_errors: true
+
+  - name: Add include to alogmon.conf if it doesn't exist
+    command: docker exec -it nginx bash -c "sed -i '/ssl_prefer_server_ciphers on;/a \    include /etc/nginx/block_list.conf;' /etc/nginx/conf.d/alogmon.conf"
+    when: grep_command.rc != 0
+    
+  - name: Clear block_list.conf file
+    command: docker exec -it nginx bash -c "echo -n > /etc/nginx/block_list.conf"
+
+  - name: Load blocked URIs
+    include_vars: blocked.yml
+
+  - name: Add blocked URIs to block_list.conf
+    command: docker exec -it nginx bash -c "echo 'location {{ item }} { return 403; }' >> /etc/nginx/block_list.conf"
+    with_items: "{{ blocked }}"
+    when: blocked | length != 0
+
+  - name: Reload nginx configuration
+    command: docker exec -it nginx bash -c "nginx -s reload"

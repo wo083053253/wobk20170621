@@ -1,0 +1,5 @@
+- hosts: elasticsearch_data_warm_servers
+  roles:
+    - { role: elasticsearch }
+  vars_files:
+    - group_vars/elasticsearch_data_warm_servers

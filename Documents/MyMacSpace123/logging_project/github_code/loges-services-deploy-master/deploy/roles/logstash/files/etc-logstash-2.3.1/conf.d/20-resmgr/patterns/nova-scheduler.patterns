@@ -1,0 +1,23 @@
+
+NOVALOG_DATE %{YEAR:year}-%{MONTHNUM:month}-%{MONTHDAY:day} %{TIME:time}
+
+COMP_PATH (%{WORD}(\.)?)*
+NOVALOG_PREFIX_S %{NOVALOG_DATE} %{INT:procId} %{LOGLEVEL2:loglevel} %{COMP_PATH:component}
+
+NOVALOG_PREFIX %{NOVALOG_DATE} %{INT:procId} %{LOGLEVEL2:loglevel} %{COMP_PATH:component} \[%{GREEDYDATA:requestId}\]
+
+NOVALOG_GENERIC %{NOVALOG_PREFIX} %{GREEDYDATA:msg}
+
+NOVALOG_RS_MSG %{NOVALOG_PREFIX} Platform Resource Scheduler %{GREEDYDATA:prs_msg}
+
+#NOVALOG_RS_EGO %{NOVALOG_PREFIX} Platform Resource Scheduler %{GREEDYDATA:prs_msg1} EGO error code\: %{INT:ego_err_code}\, EGO error message\: %{GREEDYDATA:ego_err_msg}\) %{GREEDYDATA:prs_msg2}
+
+NOVALOG_RS_EGO %{NOVALOG_PREFIX} Platform Resource Scheduler %{GREEDYDATA:prs_msg1} \(EGO error code: %{INT:ego_err_code}, EGO error message:%{GREEDYDATA:ego_err_msg}\)%{GREEDYDATA:prs_msg2}
+
+NOVALOG_ALLOC %{NOVALOG_PREFIX} Platform Resource Scheduler %{GREEDYDATA:prs_msg1} instance \(%{INT:alloc_decision_id}\) %{GREEDYDATA:prs_msg2} allocation \(%{INT:alloc_id}\) %{GREEDYDATA:prs_msg3} resource requirement %{GREEDYDATA:res_req} and extra resource requirement %{GREEDYDATA:res_req_extra}
+
+NOVALOG_ALLOC_NEST %{NOVALOG_PREFIX} %{GREEDYDATA:msg0}\: Platform Resource Scheduler %{GREEDYDATA:prs_msg1} instance \(%{INT:alloc_decision_id}\) %{GREEDYDATA:prs_msg2} allocation \(%{INT:alloc_id}\) %{GREEDYDATA:prs_msg3} resource requirement %{GREEDYDATA:res_req} and extra resource requirement %{GREEDYDATA:res_req_extra}
+
+NOVALOG_TRACE %{NOVALOG_PREFIX_S} %{GREEDYDATA:trace_msg}
+
+NOVALOG %{NOVALOG_RS_EGO}|%{NOVALOG_ALLOC}|%{NOVALOG_ALLOC_NEST}|%{NOVALOG_RS_MSG}|%{NOVALOG_GENERIC}|%{NOVALOG_TRACE}

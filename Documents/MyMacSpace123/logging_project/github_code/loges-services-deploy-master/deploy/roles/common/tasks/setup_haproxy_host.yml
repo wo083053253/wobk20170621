@@ -1,0 +1,144 @@
+# ================ Check if the files exist, set variables ================
+- name: Check if the keepalived.conf exists on the host VM
+  sudo_user: root
+  sudo: yes
+  stat: path=/etc/keepalived/keepalived.conf
+  register: check_keepalived_config_file
+
+- name: Check if the haproxy.cfg exists on the host VM
+  sudo_user: root
+  sudo: yes
+  stat: path=/etc/haproxy/haproxy.cfg
+  register: check_haproxy_config_file
+
+- name: Check if rsyslog is already logging Keepalived output
+  sudo_user: root
+  sudo: yes
+  stat: path=/etc/rsyslog.d/49-keepalived.conf
+  register: check_rsyslog_config_file
+
+- name: Check if the keepalived options file is already defined
+  sudo_user: root
+  sudo: yes
+  stat: path=/etc/keepalived/options.conf
+  register: check_keepalived_options_file
+
+# ================ Create the log directories if necessary ================
+- name: Create the keepalived log directory
+  sudo_user: root
+  sudo: yes
+  file: path=/var/log/keepalived/ state=directory owner=syslog group=adm mode=0755
+
+# ================ Create backups of the HAProxy and Keepalived config files ================
+- name: Create a backup of the keepalived.conf file
+  sudo_user: root
+  sudo: yes
+  command: cp /etc/keepalived/keepalived.conf /etc/keepalived/keepalived.conf.bak
+  when: check_keepalived_config_file.stat.exists == true
+
+- name: Create a backup of the haproxy.cfg file
+  sudo_user: root
+  sudo: yes
+  command: cp /etc/haproxy/haproxy.cfg /etc/haproxy/haproxy.cfg.bak
+  when: check_haproxy_config_file.stat.exists == true
+
+- name: Create a backup of the keepalived rsyslog config file
+  sudo_user: root
+  sudo: yes
+  command: cp /etc/rsyslog.d/49-keepalived.conf /etc/rsyslog.d/49-keepalived.conf.bak
+  when: check_rsyslog_config_file.stat.exists == true
+
+- name: Create a backup of the keepalived options file
+  sudo_user: root
+  sudo: yes
+  command: cp /etc/keepalived/options.conf /etc/keepalived/options.conf.bak
+  when: check_keepalived_options_file.stat.exists == true
+
+# ================ Copy the HAProxy host directory structure with all necessary files from the manager node to the host VM ================
+- name: Copy HAProxy host directory structure to the HAProxy host VM
+  sudo_user: root
+  sudo: yes
+  copy: src=/opt/deploy/common_files/haproxy/host-files/ dest=/ owner=root group=root
+
+- name: Make the necessary scripts executable
+  sudo_user: root
+  sudo: yes
+  command: chmod -R +x /usr/local/bin/
+
+- name: Run the keepalived_init.sh script
+  sudo_user: root
+  sudo: yes
+  script: /opt/deploy/common_files/haproxy/keepalived_init.sh "{{ HAPROXY_SERVERS }}" "{{ KEEPALIVED_VIP }}"
+
+# ================ Apply kernel config parameters ================
+- name: Update kernel params
+  sudo_user: root
+  sudo: yes
+  command: sysctl -p /etc/sysctl.d/*.conf
+
+- name: Update nf_conntrack hashsize
+  sudo_user: root
+  sudo: yes
+  command: echo 524288 > /sys/module/nf_conntrack/hashsize
+
+# ================ Compare the old and new config files to see if services need to be restarted ================
+- name: Compare the old and new Keepalived config files
+  sudo_user: root
+  sudo: yes
+  command: cmp -s /etc/keepalived/keepalived.conf /etc/keepalived/keepalived.conf.bak
+  register: compare_keepalived_cfg
+  when: check_keepalived_config_file.stat.exists == true
+  failed_when: "compare_keepalived_cfg.rc == 2"
+
+- name: Compare the old and new rsyslog Keepalived logging config file
+  sudo_user: root
+  sudo: yes
+  command: cmp -s /etc/rsyslog.d/49-keepalived.conf /etc/rsyslog.d/49-keepalived.conf.bak
+  register: compare_rsyslog_cfg
+  when: check_rsyslog_config_file.stat.exists == true
+  failed_when: "compare_rsyslog_cfg.rc == 2"
+
+- name: Compare the old and new Keepalived options files
+  sudo_user: root
+  sudo: yes
+  command: cmp -s /etc/keepalived/options.conf /etc/keepalived/options.conf.bak
+  register: compare_options_cfg
+  when: check_keepalived_options_file.stat.exists == true
+  failed_when: "compare_options_cfg.rc == 2"
+
+# ================ Install services as needed ================
+- name: Install Keepalived if necessary
+  sudo_user: root
+  sudo: yes
+  command: keepalivedctl install
+
+# ================ Restart services as needed ================
+- name: Restart rsyslog to pick up new Keepalived log settings
+  sudo_user: root
+  sudo: yes
+  command: service rsyslog restart
+
+- name: Set the Keepalived restart flag
+  set_fact:
+    restart_keepalived: true
+  when: >
+    {{ compare_keepalived_cfg.rc | default(1) }} == 1 or
+    {{ compare_rsyslog_cfg.rc | default(1) }} == 1 or
+    {{ compare_options_cfg.rc | default(1) }} == 1
+
+- name: Restart Keepalived if necessary
+  sudo_user: root
+  sudo: yes
+  command: keepalivedctl restart
+  when: "{{ restart_keepalived | default(false) }}"
+
+- name: Check if Keepalived is running
+  sudo_user: root
+  sudo: yes
+  command: pidof keepalived
+  register: keepalived_running
+  failed_when: "keepalived_running.rc == 2"
+
+- name: Fail if Keepalived still does not start
+  fail: msg="ERROR - Keepalived failed to start"
+  when: keepalived_running.rc == 1

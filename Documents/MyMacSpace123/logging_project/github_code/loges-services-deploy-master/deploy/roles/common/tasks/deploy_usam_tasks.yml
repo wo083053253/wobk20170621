@@ -1,0 +1,183 @@
+- name: Update apt cache
+  become: true
+  become_user: root
+  apt:
+    update_cache: yes
+    cache_valid_time: 604800  # One week in seconds
+
+- name: Install packages
+  become: true
+  become_user: root
+  apt: name={{item}} state=present
+  with_items:
+    - ldap-utils
+    - sssd
+    - sssd-tools
+    - libnss-sss
+    - libpam-sss
+    - libpam-passwdqc
+    - python-pip
+    - python-kazoo
+
+- name: Install python packages
+  become: true
+  become_user: root
+  pip: name={{item}}
+  with_items:
+    - jinja2
+
+- name: Generate missing sshd keys
+  become: true
+  become_user: root
+  command: /usr/bin/ssh-keygen -A
+
+- name: Create directory to back up files
+  become: true
+  become_user: root
+  file: path=/usam.bak state=directory mode=0755 owner=root group=root
+
+- name: Backup config files that will be changed.
+  become: true
+  become_user: root
+  command: cp "{{ item.path }}/{{ item.name }}" /usam.bak
+  args:
+    creates: "/usam.bak/{{item.name}}"
+  with_items:
+    - { path: '/etc', name: 'hosts' }
+    - { path: '/etc/ssh', name: 'sshd_config' }
+    - { path: '/etc/pam.d', name: 'common-auth' }
+    - { path: '/etc/pam.d', name: 'common-password' }
+    - { path: '/etc/pam.d', name: 'common-account' }
+    - { path: '/etc/pam.d', name: 'common-session' }
+    - { path: '/etc/pam.d', name: 'common-session-noninteractive' }
+
+- name: Copy zookeeper scripts to host
+  become: true
+  become_user: root
+  copy:
+    src: "{{ usam_files }}/zkscripts/"
+    dest: /usr/local/bin
+    mode: 0755
+
+- name: Copy ldap scripts to host
+  become: true
+  become_user: root
+  copy:
+    src: "{{ usam_files }}/ldap/"
+    dest: /usr/local/bin
+    mode: 0755
+
+- name: Copy config files
+  become: true
+  become_user: root
+  copy:
+    src: "{{ usam_files }}/{{ item.name }}"
+    dest: "{{ item.dest }}"
+  with_items:
+    - { name: "sshd_config", dest: "/etc/ssh" }
+
+- name: Create directory for usam config file templates
+  become: true
+  become_user: root
+  file:
+    path: /opt/usam
+    state: directory
+    mode: 0755
+    owner: root
+    group: root
+
+- name: Copy usam config file templates
+  become: true
+  become_user: root
+  copy:
+    src: "{{ usam_files }}/templates/"
+    dest: /opt/usam
+
+- name: Create config files from templates
+  become: true
+  become_user: root
+  command: "/usr/local/bin/zkconfig --zookeeper {{ zk_servers }} --root /logmet/usam --prefix usam /opt/usam/{{ item.template }} {{ item.dest }}"
+  with_items:
+    - { template: 'usam.j2', dest: '/etc/default/usam' }
+    - { template: 'sssd.conf.j2', dest: '/etc/sssd/sssd.conf' }
+
+- name: Set permissions on sssd.conf
+  become: true
+  become_user: root
+  file:
+    path: /etc/sssd/sssd.conf
+    mode: 0600
+    owner: root
+    group: root
+
+- name: Ensure usam server is in /etc/hosts
+  become: true
+  become_user: root
+  lineinfile:
+    dest: /etc/hosts
+    line: "{{ zk_data.ldap.ip }} {{ zk_data.ldap.host }}"
+    owner: root
+    group: root
+    mode: 0644
+
+- name: Ensure /etc/sys-auth.allow-group file exists
+  become: true
+  become_user: root
+  file:
+    path: /etc/sys-auth.allow-group
+    state: touch
+    owner: root
+    group: root
+    mode: 0400
+
+- name: Remove existing usam logmet groups
+  become: true
+  become_user: root
+  command: 'sed -i -e "/^G-Role-ALC-LogMet/d" /etc/sys-auth.allow-group'
+
+- name: set groups when zk_data.groups is defined
+  set_fact:
+    usam_groups: "{{ zk_data.groups }}"
+  when: zk_data.groups is defined
+
+- name: Ensure usam groups are in /etc/sys-auth.allow-group
+  become: true
+  become_user: root
+  lineinfile:
+    dest: /etc/sys-auth.allow-group
+    line: "{{ item }}"
+    create: yes
+    owner: root
+    group: root
+    mode: 0400
+  with_items: usam_groups
+
+- name: Remove existing /etc/sudoers.d/550-LogMet file
+  become: true
+  become_user: root
+  file:
+    path: "/etc/sudoers.d/550-LogMet"
+    state: absent
+
+- name: Add logmet usam groups to /etc/sudoers.d/550-LogMet
+  become: true
+  become_user: root
+  lineinfile:
+    dest: "/etc/sudoers.d/550-LogMet"
+    line: "%{{ item }} ALL=(ALL) NOPASSWD: ALL"
+    create: yes
+    owner: root
+    group: root
+    mode: 0400
+  with_items: usam_groups
+
+- name: Start/Restart sssd service
+  become: true
+  become_user: root
+  service: name=sssd state=restarted
+
+- name: Start/Restart ssh service
+  become: true
+  become_user: root
+  service: name=ssh state=restarted
+

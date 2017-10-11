@@ -1,0 +1,3 @@
+---
+# defaults file for es_monitor
+cluster_name: ""

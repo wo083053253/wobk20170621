@@ -1,0 +1,89 @@
+- name: create the /container_logs folder
+  sudo_user: root
+  sudo: yes
+  shell: mkdir -p /container_logs/supervisor
+
+- name: grant all write access to the /container_logs
+  sudo_user: root
+  sudo: yes
+  shell: chmod 777 /container_logs
+
+- name: create the folder for haproxy when haproxy is defined for this container
+  sudo_user: root
+  sudo: yes
+  shell: mkdir -p /container_logs/haproxy
+  when: container_runs_haproxy is defined
+
+- name: create the folder for logstash when logstash is defined for this container
+  sudo_user: root
+  sudo: yes
+  shell: mkdir -p /container_logs/logstash
+  when: container_runs_logstash is defined
+
+- name: grant all write access to logstash folder
+  sudo_user: root
+  sudo: yes
+  shell: chmod 777 /container_logs/logstash
+  when: container_runs_logstash is defined
+
+- name: create the apache2 folder when apache2 is running in this container
+  sudo_user: root
+  sudo: yes
+  shell: mkdir -p /container_logs/apache2
+  when: container_runs_apache2 is defined
+
+- name: create the nginx folder when nginx is running in this container
+  sudo_user: root
+  sudo: yes
+  shell: mkdir -p /container_logs/nginx
+  when: container_runs_nginx is defined
+  
+- name: create the uwsgi folder when graphiteweb is running in this container
+  sudo_user: root
+  sudo: yes
+  shell: mkdir -p /container_logs/uwsgi
+  when: container_runs_graphiteweb is defined
+  
+- name: grant all write access to uwsgi folder
+  sudo_user: root
+  sudo: yes
+  shell: chmod 777 /container_logs/uwsgi
+  when: container_runs_graphiteweb is defined  
+
+- set_fact:
+    image_name: op-services-sidecar
+    image_tag: "{{ op_services_sidecar_version }}"
+
+- include: ../../common/tasks/docker-registry.yml
+  when: sidecar_target_logs is defined
+
+- name: logstash forwarder sidecar
+  sudo_user: root
+  sudo: yes
+  docker:
+    name: lsf_sidecar
+    state: reloaded
+    restart_policy: always
+    restart_policy_retry: 3
+    hostname: "{{ ansible_hostname }}"
+    insecure_registry: yes
+    image: "{{ registry }}/{{ image_name }}:{{ image_tag }}"
+    pull: always
+    hostname: "{{ ansible_hostname }}"
+    volumes:
+    - "/container_logs:/container_logs"
+    - "/var/log:/host_logs"
+    env:
+      LOGS_DATA_COLLECTION_SERVER: "{{ sidecar_target_logs }}"
+      BLUEMIX_SPACE_ID: "{{ sidecar_target_spaceid }}"
+      BLUEMIX_LOGGING_TOKEN: "{{ sidecar_target_token }}"
+      LOGMET_ENVIRONMENT: "{{ logmet_environment }}"
+      LOGMET_INSTANCE_TYPE: "{{ container_name }}"
+  when: sidecar_target_logs is defined
+  register: docker_module
+  until: docker_module.failed is not defined
+  retries: 5
+  delay: 10
+
+- include: ../../common/tasks/cleanup.yml
+  when: sidecar_target_logs is defined

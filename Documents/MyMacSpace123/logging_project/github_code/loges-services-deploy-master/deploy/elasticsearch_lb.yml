@@ -1,0 +1,13 @@
+- hosts: elasticsearch_lb_master
+  roles:
+    - role: haproxy
+    - role: keepalived
+  vars_files:
+    - group_vars/elasticsearch_lb_master
+
+- hosts: elasticsearch_lb_backup
+  roles:
+    - role: haproxy
+    - role: keepalived
+  vars_files:
+    - group_vars/elasticsearch_lb_backup

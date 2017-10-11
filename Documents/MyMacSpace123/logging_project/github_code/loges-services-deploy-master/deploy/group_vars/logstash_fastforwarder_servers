@@ -1,0 +1,4 @@
+---
+# file group_vars/logstash_fastforwarder
+logstash_heap_size: 2g
+

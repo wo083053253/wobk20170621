@@ -1,0 +1,10 @@
+---
+- name: reload supervisor
+  sudo_user: root
+  sudo: yes
+  service: name=supervisor state=reloaded
+
+- name: restart supervisor
+  sudo_user: root
+  sudo: yes
+  service: name=supervisor state=restarted  

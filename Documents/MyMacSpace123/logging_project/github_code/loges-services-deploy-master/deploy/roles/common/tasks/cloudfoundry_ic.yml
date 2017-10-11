@@ -1,0 +1,44 @@
+- name: Check if cf is installed
+  sudo_user: root
+  sudo: yes
+  shell: cf --version | grep 6.16.1 | wc -l
+  register: cf_version_found_count
+
+- name: download cf pkg
+  sudo_user: root
+  sudo: yes
+  shell: wget -O /tmp/cf_cli_6.16.1.deb "https://cli.run.pivotal.io/stable?release=debian64&version=6.16.1&source=github-rel"
+  when: cf_version_found_count.stdout != "1"
+  register: cf_pkg_download
+  until: cf_pkg_download.stderr.find('saved') != -1
+  retries: 5
+  delay: 10
+
+- name: install cf
+  sudo_user: root
+  sudo: yes
+  shell: dpkg -i /tmp/cf_cli_6.16.1.deb
+  when: cf_version_found_count.stdout != "1"
+
+- name: uninstall cf ibm plugins
+  sudo_user: root
+  sudo: yes
+  shell: cf uninstall-plugin IBM-Containers
+  when: cf_version_found_count.stdout != "1"
+  ignore_errors: yes
+
+- name: install cf ibm plugins
+  sudo_user: root
+  sudo: yes
+  shell: cf install-plugin https://static-ice.ng.bluemix.net/ibm-containers-linux_x64 -f
+  when: cf_version_found_count.stdout != "1"
+  register: cf_ibm_plugin
+  until: cf_ibm_plugin.rc == 0
+  retries: 5
+  delay: 10
+
+- name: cf list plugins
+  sudo_user: root
+  sudo: yes
+  shell: cf plugins
+  when: cf_version_found_count.stdout != "1"

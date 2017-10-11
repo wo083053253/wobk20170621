@@ -1,0 +1,4 @@
+- hosts: logstash_objstore_servers
+  serial: "{{ rolling_update_batch_size }}"
+  roles:
+  - logstash_objstore

@@ -1,0 +1,3 @@
+---
+- name: restart mt-logstash-forwarder
+  service: name=mt-logstash-forwarder state=restarted

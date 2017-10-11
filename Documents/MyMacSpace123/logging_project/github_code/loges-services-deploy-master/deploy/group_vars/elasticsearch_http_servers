@@ -1,0 +1,42 @@
+---
+es_instance_name: "http"
+es_config: {
+#  es_instance_name: "{{ ansible_hostname }}",
+  cluster.name: "{{ ES_CLUSTER_NAME }}",
+  network.host: "_eth0_",
+  discovery.zen.ping.unicast.hosts: "{{ MASTER_CANDIDATES_NAME }}",
+  http.port: 9200,
+  transport.tcp.port: 9300,
+  node.data: false,
+  node.master: false,
+#  node.rack: "{{ RACK_NAME }}",
+#  bootstrap.mlockall: true,
+  bootstrap.memory_lock: true,
+  cluster.routing.allocation.disk.threshold_enabled: true,
+  cluster.routing.allocation.disk.watermark.low: 2gb,
+  cluster.routing.allocation.disk.watermark.high: 1gb,
+  cluster.info.update.interval: 60s,
+  indices.fielddata.cache.size: 25%,
+#   gateway.recover_after_master_nodes: 2,
+#   gateway.recover_after_data_nodes: 1,
+#   gateway.recover_after_time: 5m,
+#   gateway.expected_nodes: 3,
+  indices.store.throttle.type: "none",
+#   discovery.zen.minimum_master_nodes: 2,
+  http.cors.allow-origin: "/.*/",
+  http.cors.enabled: true,
+#  discovery.zen.fd.ping_interval : 1s,
+#  discovery.zen.fd.ping_timeout : 60s,
+#  discovery.zen.fd.ping_retries: 10
+  discovery.zen.ping_timeout : 60s
+}
+es_data_dirs: "/opt/elasticsearch/data"
+es_heap_size: 1g
+es_max_open_files: 1048576
+es_major_version: "5.x"
+es_version: "5.0"
+es_apt_key: "https://artifacts.elastic.co/GPG-KEY-elasticsearch"
+es_apt_url: "deb https://artifacts.elastic.co/packages/{{ es_major_version }}/apt stable main"
+es_java_opts:
+  - "-Xms{{ es_heap_size }}"
+  - "-Xmx{{ es_heap_size }}"

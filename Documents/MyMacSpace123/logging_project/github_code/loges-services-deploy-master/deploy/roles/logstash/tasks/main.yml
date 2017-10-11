@@ -1,0 +1,295 @@
+---
+- name: check supervisor service status
+  sudo_user: root
+  sudo: yes
+  stat: path=/etc/supervisor/supervisord.conf
+  register: super
+
+- name: Ensure supervisor service stopped for upgrade
+  sudo_user: root
+  sudo: yes
+  service: name=supervisor state=stopped
+  when: rolling_update_batch_size is defined and rolling_update_batch_size != "100%" and super.stat.exists == True
+
+#ps -ef | grep java | grep -v grep | awk '{print $2}' | xargs kill -9
+- name: clean java process
+  sudo_user: root
+  sudo: yes
+  shell: ps -ef | grep java | grep -v grep | awk '{print $2}' | xargs kill -9
+  when: rolling_update_batch_size is defined and rolling_update_batch_size != "100%"
+
+- name: Update apt cache if not done today
+  become: yes
+  apt: update_cache=yes
+
+- name: remove plugins
+  sudo_user: root
+  sudo: yes
+  apt: pkg={{ item }} state=absent
+  with_items:
+     - ibm-logging-logstash-filter-cluster-logstash{{ logstash_ver[0:1] }}=*
+  when: rolling_update_batch_size is defined and rolling_update_batch_size != "100%" and super.stat.exists == True
+
+- name: remove custom-filters
+  sudo_user: root
+  sudo: yes
+  apt: pkg={{ item }} state=absent purge=yes
+  with_items:
+     - custom-filters
+  when: rolling_update_batch_size is defined and rolling_update_batch_size != "100%" and super.stat.exists == True
+
+- name: dpkg purge custom-filters
+  sudo_user: root
+  sudo: yes
+  command: dpkg --purge custom-filters
+  when: rolling_update_batch_size is defined and rolling_update_batch_size != "100%" and super.stat.exists == True
+
+- name: Install JAVA8
+  become: yes
+  apt: name=openjdk-8-jdk state=latest
+
+- name: Set the time in the container to UTC
+  become: yes
+  command: ln -sf /usr/share/zoneinfo/UTC /etc/localtime
+
+- name: install supervisor
+  sudo_user: root
+  sudo: yes
+  apt:
+    name: supervisor
+
+- name: install logstash
+  sudo_user: root
+  sudo: yes
+  apt: pkg={{ item }}
+  with_items:
+     - logstash=1:{{ logstash_ver }}-1
+
+
+- name: Install haveged to speed up random number generation
+  become: yes
+  apt: name=haveged state=latest
+
+- name: Enable haveged
+  become: yes
+  command: update-rc.d haveged defaults
+
+- name: Install common Logstash plugins
+  include: roles/common/tasks/install-logstash-plugins.yml
+
+- name: copy es quota gem pkg
+  sudo_user: root
+  sudo: yes
+  copy: src="files/etc-logstash-5.1.1/logstash-filter-es-quota-5.0.0.gem" dest=/tmp/logstash-filter-es-quota-5.0.0.gem owner=root group=root mode=0644
+  when: logstash_ver == "5.1.1"
+
+- name: check es quota gem pkg logstash-filter-es-quota-5.0.0.gem
+  sudo_user: root
+  sudo: yes
+  stat: path=/tmp/logstash-filter-es-quota-5.0.0.gem
+  register: es_quota_file
+
+- name: Install es quota plugins
+  command: /usr/share/logstash/bin/logstash-plugin install --local --no-verify /tmp/{{ item }}
+  become: yes
+  environment:
+    JRUBY_OPTS: "-J-Djava.security.egd=file:/dev/urandom"
+  with_items:
+   - logstash-filter-es-quota-5.0.0.gem
+  when: logstash_ver == "5.1.1" and es_quota_file.stat.exists == True
+
+- name: copy rename type gem pkg
+  sudo_user: root
+  sudo: yes
+  copy: src="files/etc-logstash-5.1.1/logstash-filter-type-rename-5.0.0.gem" dest=/tmp/logstash-filter-type-rename-5.0.0.gem owner=root group=root mode=0644
+  when: logstash_ver == "5.1.1"
+
+- name: check rename type gem pkg logstash-filter-type-rename-5.0.0.gem
+  sudo_user: root
+  sudo: yes
+  stat: path=/tmp/logstash-filter-type-rename-5.0.0.gem
+  register: rename_type_file
+
+- name: Install rename type plugins
+  command: /usr/share/logstash/bin/logstash-plugin install --local --no-verify /tmp/{{ item }}
+  become: yes
+  environment:
+    JRUBY_OPTS: "-J-Djava.security.egd=file:/dev/urandom"
+  with_items:
+   - logstash-filter-type-rename-5.0.0.gem
+  when: logstash_ver == "5.1.1" and rename_type_file.stat.exists == True
+
+- name: Install IBM logstash plugin - logstash-filter-cluster
+  sudo_user: root
+  sudo: yes
+  apt: pkg={{ item }}
+  with_items:
+     - ibm-logging-logstash-filter-cluster-logstash{{ logstash_ver[0:1] }}={{ logstash_ver[0:3] }}-*
+
+- name: Search pagerduty directory
+  become: yes
+  shell: dirname `find /usr/share/logstash/ -name pagerduty.rb`
+  register: pagerduty_folder
+
+- name: copy pagerduty2 module
+  become: yes
+  copy: src=roles/logstash/files/pagerduty2.rb dest={{ pagerduty_folder.stdout }}/pagerduty2.rb
+  when: pagerduty_folder.stdout != ""
+
+#copy kafka ssl truststore
+- name: copy kafka ssl truststore
+  sudo_user: root
+  sudo: yes
+  copy: src={{ KAFKA_SSL_TRUSTSTORE_SOURCE }} dest={{ KAFKA_SSL_TRUSTSTORE_TARGET }} owner=root group=root mode=0644
+  when: KAFKA_SSL_ENABLED is defined and KAFKA_SSL_ENABLED == 1
+
+- name: make sure the configuration file directory is exist
+  sudo_user: root
+  sudo: yes
+  file:
+    path: "{{ item }}"
+    recurse: yes
+    state: directory
+  with_items:
+    - "/etc/logstash/conf.d/"
+
+- name: Apply conf templates
+  template:
+    src: "roles/logstash/files/etc-logstash-{{logstash_ver }}/conf.d/{{ item }}"
+    dest: "/etc/logstash/conf.d/{{ item }}"
+  with_items:
+    - 00-input.conf
+    - 99-output.conf
+    - 04-es-quota-filter.conf
+
+#copy jaas config file for Kafka SASL support
+- name: copy kafka_client_jaas.conf file
+  sudo_user: root
+  sudo: yes
+  template:
+    dest: /etc/logstash/kafka_client_jaas.conf
+    owner: root
+    group: root
+    mode: 0644
+    src: roles/logstash/files/kafka_client_jaas.conf.j2
+  when: KAFKA_SSL_ENABLED is defined and KAFKA_SSL_ENABLED == 1
+
+
+# Move the 95-logstash-date-filter.conf and 97-rename-filter.conf
+# into customer filter, then clean them
+- name: clean the 95-logstash-date-filter.conf
+  become: yes
+  file:
+    path: /etc/logstash/conf.d/95-logstash-date-filter.conf
+    state: absent
+
+- name: clean the 97-rename-filter.conf
+  become: yes
+  file:
+    path: /etc/logstash/conf.d/97-rename-filter.conf
+    state: absent
+
+# Delete the file '98-logstash-metric-filter.conf'
+- name: clean the 98-logstash-metric-filter.conf
+  become: yes
+  file:
+    path: /etc/logstash/conf.d/98-logstash-metric-filter.conf
+    state: absent
+
+# - name: Copy configurations
+#   become: yes
+#   copy: src=roles/logstash/files/etc-logstash-{{ logstash_ver }}/ dest=/etc/logstash/ directory_mode=655
+#install custom-filters deb pacakge
+- name: install custom-filters
+  sudo_user: root
+  sudo: yes
+  apt: pkg={{ item }}
+  with_items:
+     - custom-filters
+
+- name: Replace logstash parameters
+  become: yes
+  template: src=roles/logstash/files/logstash-env.j2 dest=/tmp/logstash-replace-filter-vars.sh
+
+- name: Get kafka input plugin file path
+  become: yes
+  shell: dirname `find / -name kafka.rb|grep -i logstash-input-kafka`
+  register: kafka_input_folder
+
+- name: Copy customized kafka input file
+  become: yes
+  copy: src=roles/logstash/files/kafka.rb dest={{ item }}/kafka.rb
+  with_items: "{{ kafka_input_folder.stdout_lines }}"
+  when: kafka_input_folder.stdout != ""
+
+- name: Copy runLogstashIndexer.sh to target
+  copy: src=roles/logstash/files/runLogstashIndexer.sh dest=/tmp
+
+- name: merge logstash-replace-filter-vars.sh and runLogstashIndexer.sh
+  become: yes
+  shell: cat /tmp/logstash-replace-filter-vars.sh /tmp/runLogstashIndexer.sh > /tmp/logstash.sh
+
+- name: Set Permissions
+  become: yes
+  command: chmod a+x /tmp/logstash.sh
+
+- name: Apply the filter
+  become: yes
+  shell: /tmp/logstash.sh
+
+- name: copy logstash.conf
+  become: yes
+  copy: src=roles/logstash/files/logstash.conf dest=/etc/supervisor/conf.d/
+
+- name: apply jvm options
+  become: yes
+  template:
+    src: "roles/logstash/files/{{ item }}.j2"
+    dest: "/etc/logstash/{{ item }}"
+  with_items:
+    - jvm.options
+    - log4j2.properties
+
+- name: remove 20-bluemix filter
+  sudo_user: root
+  sudo: yes
+  file:
+    path: /etc/logstash/conf.d/20-bluemix
+    state: absent
+  when: disable_20_bluemix is defined and disable_20_bluemix == "1"
+
+- name: Ensure supervisor service
+  sudo_user: root
+  sudo: yes
+  service: name=supervisor state=restarted
+
+- name: Copy monitorDiffKafkaTopic.sh to target
+  copy: src=roles/logstash/files/monitorDiffKafkaTopic.sh dest=/opt
+
+- name: merge logstash-replace-filter-vars.sh and monitorDiffKafkaTopic.sh
+  become: yes
+  shell: cat /tmp/logstash-replace-filter-vars.sh /opt/monitorDiffKafkaTopic.sh > /opt/monitorKafka.sh
+
+- name: Set Permissions
+  become: yes
+  command: chmod a+x /opt/monitorKafka.sh
+
+- name: Copy monitorCronTab.cron to target
+  copy: src=roles/logstash/files/monitorCronTab.cron dest=/opt
+
+- name: Set Permissions
+  become: yes
+  command: chmod a+x /opt/monitorCronTab.cron
+
+- name: Set crontab to monitor kafka
+  become: yes
+  shell: crontab /opt/monitorCronTab.cron
+
+- cron:
+    name: delete logs for over 7 days
+    minute: "30"
+    hour: "00"
+    day: "*"
+    month: "*"
+    user: ubuntu
+    job: "sudo find /var/log/logstash/*.log -mmin +$((60*24*7)) -type f -delete"

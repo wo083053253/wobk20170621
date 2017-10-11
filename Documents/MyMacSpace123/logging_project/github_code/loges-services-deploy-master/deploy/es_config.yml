@@ -1,0 +1,3 @@
+- hosts: manager_servers
+  roles:
+    - { role: es_config }

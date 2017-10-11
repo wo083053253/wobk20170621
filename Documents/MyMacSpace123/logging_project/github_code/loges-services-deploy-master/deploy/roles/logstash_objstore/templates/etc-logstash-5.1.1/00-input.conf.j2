@@ -1,0 +1,29 @@
+input {
+  swift {
+   topic_id => "{{ swift_restore_topic }}"
+   group_id => "logstash-swift-restore"
+   zk_connect => "{{ zookeeper_servers }}"
+   auth_user_id => "{{ LOGMET_SWIFT_USER_ID }}"
+   auth_password => "{{ LOGMET_SWIFT_PASSWORD }}"
+   auth_region => "{{ LOGMET_SWIFT_REGION }}"
+   decorate_events => false
+   restore_status_topic_id => "{{ swift_restore_progress_topic }}"
+   bootstrap_servers => "{{ kafka_servers }}"
+   objects_thread_pool => {{objects_thread_pool}}
+   notification_thread_pool => {{notification_thread_pool }}
+   notification_interval => {{ notification_interval }}
+   token_advance_time => {{ token_advance_time }}
+   client_auth => "{{alogpass_client_auth }}"
+   alogpass_url => "{{space_mapping_url }}"
+   tenantinfo_account_url => "{{account_mapping_url }}"
+   container_prefix => "edge"
+  }
+}
+
+filter {
+  if "{{RENAME_FILTER_ENABLED}}" == "1" {
+    # Define skip_rename_filter so that certain custom_filters can change it and it doesn't come from user log properties
+    mutate { add_field => { "skip_rename_filter" => "false" } }
+  }
+}
+

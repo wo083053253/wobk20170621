@@ -1,0 +1,25 @@
+<LoadPlugin "python">
+    Globals true
+</LoadPlugin>
+
+<Plugin "python">
+    ModulePath "/usr/share/collectd/collectd-elasticsearch"
+
+    Import "elasticsearch_collectd"
+
+    <Module "elasticsearch_collectd">
+        Host "{{ ansible_all_ipv4_addresses[0] }}"
+        Cluster "{{ cluster_name }}"
+        Port 9200
+        Verbose false
+        Indexes ["_all"]
+        EnableIndexStats true
+        EnableClusterHealth true
+        IndexStatsMasterOnly true
+        Interval 30
+        IndexInterval 90
+        DetailedMetrics false
+        ThreadPools ["generic","index","get","snapshot","bulk","warmer","flush","search","refresh"]
+        AdditionalMetrics [""]
+    </Module>
+</Plugin>

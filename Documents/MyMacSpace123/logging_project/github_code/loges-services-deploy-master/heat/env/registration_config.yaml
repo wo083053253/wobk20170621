@@ -1,0 +1,29 @@
+heat_template_version: 2013-05-23
+resources:  
+  config:
+    type: OS::Heat::SoftwareConfig
+    properties:
+      group: script
+      inputs:
+        - name: manager_ip
+        - name: hostname
+        - name: role
+        - name: cluster_num
+        - name: cluster_name
+      config: |
+        #!/bin/bash
+        #ensure shell script is exist
+        while [ $i -le 5 ]
+        do
+          su - ubuntu -c "ssh -o StrictHostKeyChecking=no -q ubuntu@$manager_ip ls /opt/deploy/scripts/inventory_register.sh" >/dev/null 2>&1
+          [ $? -eq 0 ] && break
+          sleep 30
+          i=$(( $i + 1 ))
+        done               
+        su - ubuntu -c "scp -o StrictHostKeyChecking=no ubuntu@$manager_ip:/opt/deploy/scripts/inventory_register.sh /tmp/register.sh"
+        bash /tmp/register.sh $manager_ip $hostname $role ${cluster_num:-''} ${cluster_name:-''}
+
+outputs:
+  config:
+    description: config for each member
+    value: { get_resource: config }

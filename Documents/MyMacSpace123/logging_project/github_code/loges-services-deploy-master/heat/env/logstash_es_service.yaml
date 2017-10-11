@@ -1,0 +1,217 @@
+heat_template_version: 2013-05-23
+parameters:
+  flavor:
+    type: json
+    description: flavor used by the web servers
+  frontend_network:
+    type: string
+    description: internal network of the group
+  elasticsearch_security_group:
+    type: string
+    description: Resource ID for the elasticsearch_security_group
+  logstash_security_group:
+    type: string
+    description: Resource ID for the logstash_security_group
+  monitor_security_group:
+    type: string
+    description: Resource ID for the monitor_security_group
+  logstash_objstore_security_group:
+    type: string
+    description: Resource ID for the logstash_objstore_security_group
+  manager_ip:
+    type: string
+    description: Fixed IP address of the manager node
+  config:
+    type: string
+    description: Config resource for node registration
+  min_size:
+    type: json
+    description: min size
+  images:
+    type: json
+    description: images names for default elasticsearch and carboncache
+  init_manager_private_key:
+    type: string
+    description: SSH private key to connect to initial manager
+  availability_zone:
+    type: json
+    description: availability_zone for different components
+  es_data_hot_server_group:
+    type: string
+    description: elasticsearch_data_hot server group for anti-affinity
+  es_data_warm_server_group:
+    type: string
+    description: elasticsearch_data_warm server group for anti-affinity
+  es_master_server_group:
+    type: string
+    description: elasticsearch_master server group for anti-affinity
+  es_http_server_group:
+    type: string
+    description: elasticsearch_http server group for anti-affinity
+  cluster_num:
+    type: number
+    description: Number of the cluster to be deployed
+  cluster_name:
+    type: string
+    description: Cluster name for elasticsearch
+
+resources:
+  elasticsearch_data_hot:
+    type: IBM::Logmet::Group2
+    properties:
+      flavor: { get_param: [ flavor, elasticsearch_data_hot ] }
+      image: { get_param: [ images, elasticsearch_data_hot ] }
+      frontend_network: { get_param: frontend_network }
+      manager_ip: { get_param: manager_ip }
+      config: { get_param: config }
+      security_group: { get_param: elasticsearch_security_group }
+      min_size: { get_param: [ min_size, elasticsearch_data_hot ] }
+      init_manager_private_key: { get_param:  init_manager_private_key }
+      availability_zone: { get_param: [ availability_zone, elasticsearch_data_hot ] }
+      server_group: { get_param: es_data_hot_server_group }
+      cluster_num: { get_param: cluster_num }
+      cluster_name: { get_param: cluster_name }
+      role_name: elasticsearch_data_hot
+
+  elasticsearch_data_warm:
+    depends_on: [ elasticsearch_data_hot ]
+    type: IBM::Logmet::Group2
+    properties:
+      flavor: { get_param: [ flavor, elasticsearch_data_warm ] }
+      image: { get_param: [ images, elasticsearch_data_warm ] }
+      frontend_network: { get_param: frontend_network }
+      manager_ip: { get_param: manager_ip }
+      config: { get_param: config }
+      security_group: { get_param: elasticsearch_security_group }
+      min_size: { get_param: [ min_size, elasticsearch_data_warm ] }
+      init_manager_private_key: { get_param:  init_manager_private_key }
+      availability_zone: { get_param: [ availability_zone, elasticsearch_data_warm ] }
+      server_group: { get_param: es_data_warm_server_group }
+      cluster_num: { get_param: cluster_num }
+      cluster_name: { get_param: cluster_name }
+      role_name: elasticsearch_data_warm
+
+  elasticsearch_master:
+    depends_on: [ elasticsearch_data_warm ]
+    type: IBM::Logmet::Group2
+    properties:
+      flavor: { get_param: [ flavor, elasticsearch_master ] }
+      image: { get_param: [ images, default ] }
+      frontend_network: { get_param: frontend_network }
+      manager_ip: { get_param: manager_ip }
+      config: { get_param: config }
+      security_group: { get_param: elasticsearch_security_group }
+      min_size: { get_param: [ min_size, elasticsearch_master ] }
+      init_manager_private_key: { get_param:  init_manager_private_key }
+      availability_zone: { get_param: [ availability_zone, default ] }
+      server_group: { get_param: es_master_server_group }
+      cluster_num: { get_param: cluster_num }
+      cluster_name: { get_param: cluster_name }
+      role_name: elasticsearch_master
+
+  elasticsearch_http:
+    depends_on: [ elasticsearch_master ]
+    type: IBM::Logmet::Group2
+    properties:
+      flavor: { get_param: [ flavor, elasticsearch_http ] }
+      image: { get_param: [ images, default ] }
+      frontend_network: { get_param: frontend_network }
+      manager_ip: { get_param: manager_ip }
+      config: { get_param: config }
+      security_group: { get_param: elasticsearch_security_group }
+      min_size: { get_param: [ min_size, elasticsearch_http ] }
+      init_manager_private_key: { get_param:  init_manager_private_key }
+      availability_zone: { get_param: [ availability_zone, default ] }
+      server_group: { get_param: es_http_server_group }
+      cluster_num: { get_param: cluster_num }
+      cluster_name: { get_param: cluster_name }
+      role_name: elasticsearch_http
+
+  logstash:
+    depends_on: [ elasticsearch_http ]
+    type: IBM::Logmet::Group1
+    properties:
+      flavor: { get_param: [ flavor, logstash ] }
+      image: { get_param: [ images, default ] }
+      frontend_network: { get_param: frontend_network }
+      manager_ip: { get_param: manager_ip }
+      config: { get_param: config }
+      security_group: { get_param: logstash_security_group }
+      min_size: { get_param: [ min_size, logstash ] }
+      init_manager_private_key: { get_param:  init_manager_private_key }
+      availability_zone: { get_param: [ availability_zone, default ] }
+      cluster_num: { get_param: cluster_num }
+      cluster_name: { get_param: cluster_name }
+      role_name: logstash
+
+  # logstash_fastforwarder:
+  #   type: IBM::Logmet::Group1
+  #   properties:
+  #     flavor: { get_param: [ flavor, logstash_fastforwarder ] }
+  #     image: { get_param: [ images, default ] }
+  #     frontend_network: { get_param: frontend_network }
+  #     frontend_subnet: { get_param: frontend_subnet }
+  #     manager_ip: { get_param: manager_ip }
+  #     config: { get_param: config }
+  #     security_group: { get_param: logstash_security_group }
+  #     min_size: { get_param: [ min_size, logstash_fastforwarder ] }
+  #     init_manager_public_key: { get_param:  init_manager_public_key }
+  #     init_manager_private_key: { get_param:  init_manager_private_key }
+  #     init_manager_private_key: { get_param:  init_manager_private_key }
+  #     availability_zone: { get_param: [ availability_zone, default ] }
+  #     cluster_num: { get_param: cluster_num }
+  #     cluster_name: { get_param: cluster_name }
+  #     role_name: logstash_fastforwarder
+
+
+  logstash_objstore:
+    depends_on: [ logstash ]
+    type: IBM::Logmet::Group1
+    properties:
+      flavor: { get_param: [ flavor, logstash_objstore ] }
+      image: { get_param: [ images, default ] }
+      frontend_network: { get_param: frontend_network }
+      security_group: { get_param: logstash_objstore_security_group }
+      manager_ip: { get_param: manager_ip }
+      config: { get_param: config }
+      min_size: { get_param: [ min_size, logstash_objstore ] }
+      init_manager_private_key: { get_param:  init_manager_private_key }
+      availability_zone: { get_param: [ availability_zone, default ] }
+      cluster_num: { get_param: cluster_num }
+      cluster_name: { get_param: cluster_name }
+      role_name: logstash_objstore
+
+  # monitor:
+  #   type: IBM::Logmet::Group1
+  #   properties:
+  #     flavor: { get_param: [ flavor, monitor ] }
+  #     image: { get_param: [ images, default ] }
+  #     frontend_network: {get_param: frontend_network }
+  #     security_group: { get_param: monitor_security_group }
+  #     manager_ip: { get_param: manager_ip }
+  #     config: { get_param: config }
+  #     min_size: { get_param: [ min_size, monitor ] }
+  #     init_manager_private_key: { get_param:  init_manager_private_key }
+  #     availability_zone: { get_param: [ availability_zone, default ] }
+  #     role_name: monitor
+
+outputs:
+  scale_urls:
+    description: Scale urls
+    value:
+      elasticsearch_master_up: { get_attr: [ elasticsearch_master, scale_up_url ] }
+      elasticsearch_master_dn: { get_attr: [ elasticsearch_master, scale_dn_url ] }
+      elasticsearch_data_hot_up: { get_attr: [ elasticsearch_data_hot, scale_up_url ] }
+      elasticsearch_data_hot_dn: { get_attr: [ elasticsearch_data_hot, scale_dn_url ] }
+      elasticsearch_data_warm_up: { get_attr: [ elasticsearch_data_warm, scale_up_url ] }
+      elasticsearch_data_warm_dn: { get_attr: [ elasticsearch_data_warm, scale_dn_url ] }
+      elasticsearch_http_up: { get_attr: [ elasticsearch_http, scale_up_url ] }
+      elasticsearch_http_dn: { get_attr: [ elasticsearch_http, scale_dn_url ] }
+      logstash_up: { get_attr: [ logstash, scale_up_url ] }
+      logstash_dn: { get_attr: [ logstash, scale_dn_url ] }
+      # logstash_fastforwarder_up: { get_attr: [ logstash_fastforwarder, scale_up_url ] }
+      # logstash_fastforwarder_dn: { get_attr: [ logstash_fastforwarder, scale_dn_url ] }
+      logstash_objstore_up: { get_attr: [ logstash_objstore, scale_up_url ] }
+      logstash_objstore_dn: { get_attr: [ logstash_objstore, scale_dn_url ] }
+      # monitor_up: { get_attr: [ monitor, scale_up_url ] }
+      # monitor_dn: { get_attr: [ monitor, scale_dn_url ] }

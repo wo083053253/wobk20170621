@@ -1,0 +1,9 @@
+{
+    "files": [
+        {
+            "paths": [ "/var/log/REPLACE_LOG_FILE_NAME.log" ],
+            "fields": { "type": "log_monitor" }
+        }
+    ]
+}
+

@@ -1,0 +1,154 @@
+---
+- name: check supervisor service status
+  sudo_user: root
+  sudo: yes
+  stat: path=/etc/supervisor/supervisord.conf
+  register: super
+
+- name: Ensure supervisor service stopped for upgrade
+  sudo_user: root
+  sudo: yes
+  service: name=supervisor state=stopped
+  when: rolling_update_batch_size is defined and rolling_update_batch_size != "100%" and super.stat.exists == True
+
+#ps -ef | grep java | grep -v grep | awk '{print $2}' | xargs kill -9
+- name: clean java process
+  sudo_user: root
+  sudo: yes
+  shell: ps -ef | grep java | grep -v grep | awk '{print $2}' | xargs kill -9
+  when: rolling_update_batch_size is defined and rolling_update_batch_size != "100%"
+
+- name: Update apt cache if not done today
+  become: yes
+  apt: update_cache=yes
+
+- name: remove plugins
+  sudo_user: root
+  sudo: yes
+  apt: pkg={{ item }} state=absent
+  with_items:
+     - ibm-logging-logstash-input-edge-s3-logstash{{ logstash_ver[0:1] }}=*  
+     - ibm-logging-logstash-filter-cluster-logstash{{ logstash_ver[0:1] }}=*
+  when: rolling_update_batch_size is defined and rolling_update_batch_size != "100%" and super.stat.exists == True
+
+- name: remove custom-filters
+  sudo_user: root
+  sudo: yes
+  apt: pkg={{ item }} state=absent purge=yes
+  with_items:
+     - custom-filters
+  when: rolling_update_batch_size is defined and rolling_update_batch_size != "100%" and super.stat.exists == True
+
+- name: dpkg purge custom-filters
+  sudo_user: root
+  sudo: yes
+  command: dpkg --purge custom-filters
+  when: rolling_update_batch_size is defined and rolling_update_batch_size != "100%" and super.stat.exists == True
+
+- name: Uninstall IBM logstash-recentdata Deb
+  sudo_user: root
+  sudo: yes
+  apt: pkg={{ item }} state=absent purge=yes
+  with_items:
+    - ibm-logstash-recentdata
+
+- name: purge all /etc/logstash/conf.d files
+  sudo_user: root
+  sudo: yes
+  command: rm -rf /etc/logstash/conf.d/*
+  when: rolling_update_batch_size is defined and rolling_update_batch_size != "100%" and super.stat.exists == True
+
+- name: Install latest version of IBM logstash-recentdata
+  sudo_user: root
+  sudo: yes
+  apt: pkg={{ item }} state=latest
+  with_items:
+    - ibm-logstash-recentdata
+  when: (ucd_deploy is not defined) or
+        (ucd_deploy is defined and ucd_deploy == "false")
+
+- name: UCD version of logstash-recentdata is installed
+  sudo_user: root
+  sudo: yes
+  apt: pkg={{ item }} state=installed force=true update_cache=yes
+  with_items:
+    - ibm-logstash-recentdata={{ op_services_logstash_recentdata_version }}
+  when: ucd_deploy is defined and ucd_deploy == "true"
+
+- name: remove index and cronjob scripts
+  sudo_user: root
+  sudo: yes
+  file: path={{ item }} state=absent
+  with_items:
+    - /opt/monitorKafka.sh
+    - /tmp/logstash.sh
+
+- name: Run logstash-recentdata-static-config script
+  sudo_user: root
+  sudo: yes
+  shell: /usr/local/bin/logstash-recentdata-static-config.sh
+
+- name: Run logstash-recentdata-dynamic-config script (modifying logstash parameters)
+  sudo_user: root
+  sudo: yes
+  environment:
+    CUSTOM_FILTERS: "{{ CUSTOM_FILTERS | default('10-logtrail 20-c2c 20-iibcloud 20-liberty 20-mariposa 20-resmgr 20-taas') }}"
+    KAFKA_SERVERS: "{{ kafka_servers }}"
+    TOPIC_ID: "{{ KAFKA_TOPIC }}"
+    CONSUMER_GROUP_ID: "{{ CONSUMER_GROUP_ID | default('logstash-recentdata') }}"
+    ELASTICSEARCH_CLUSTER: "{{ ES_CLUSTER_NAME | default('elasticsearch')}}"
+    DOCKER_HOST_IP: "{{ ansible_eth0.ipv4.address }}"
+    ZOOKEEPER_SERVERS: "{{ zookeeper_servers }}"
+    TENANTINFO_IP: "{{ TENANTINFO_IP }}"
+    TENANTINFO_HOST: "{{ TENANTINFO_IP }}"
+    TENANTINFO_PORT: "{{ TENANTINFO_PORT }}"
+    ELASTICSEARCH_HTTP_NODE_LIST: "{{ ELASTICSEARCH_HTTP_NODE_LOGSTASH }}"
+    ELASTICSEARCH_HTTP_LIST: "{{ ELASTICSEARCH_HTTP_LIST }}"
+    carbon_relay: "{{ carbon_relay }}"
+    GRAPHITE_ENVIRONMENT: "{{ graphite_environment }}"
+    METRICS_HOST: "{{ metrics_host }}"
+    METRICS_PORT: "{{ metrics_port }}"
+    INTERNAL_METRICS_TARGET: "{{ metrics_target }}"
+    BLUEMIX_SPACE_ID: "{{ metrics_target_spaceid }}"
+    BLUEMIX_LOGGING_TOKEN: "{{ metrics_target_token }}"
+    LOGMET_ENVIRONMENT: "{{ logmet_environment }}"
+    LS_HEAP_SIZE: "{{ logstash_heap_size | default('2000m') }}"
+    LS_USE_GC_LOGGING: ""
+    LS_OPEN_FILES: "65536"
+    LS_CONSUMER_THREADS: "1"
+    ESALIAS_ENABLED: "{{ ESALIAS_ENABLED | default('1') }}"
+    ESALIAS_ENABLE_DATE: "{{ ESALIAS_ENABLE_DATE | default('') }}"
+    MULTI_TOPICS_ENABLED: "{{ MULTI_TOPICS_ENABLED }}"
+    MULTI_CLUSTER_ES_ENABLED: "{{ MULTI_CLUSTER_ES_ENABLED }}"
+    RENAME_FILTER_ENABLED: "{{ RENAME_FILTER_ENABLED }}"
+    STATSD_HOST: "localhost"
+    STATSD_PORT: "8125"
+    REBALANCE_MAX_RETRIES: "{{ REBALANCE_MAX_RETRIES | default('10') }}"
+    REBALANCE_BACKOFF_MS: "{{ REBALANCE_BACKOFF_MS | default('15000') }}"
+    MONITOR_TIME_INTERVAR: "30s"
+    BLOCKLIST_INTERVAL: "{{ BLOCKLIST_INTERVAL | default('30') }}"
+    CAPPING_ENABLED: "{{ CAPPING_ENABLED | default('false') }}"
+    CAPPING_INTERVAL: "{{ CAPPING_INTERVAL | default('30') }}"
+    THROTTLING_ENABLED: "{{ THROTTLING_ENABLED | default('false') }}"
+    THROTTLE_INTERVAL: "{{ THROTTLE_INTERVAL | default('30') }}"
+    RENAME_FILTER_ENABLED: "{{ rename_filter_enabled | default('1') }}"
+    ES_QUOTA_FILTER_ENABLED: "{{ ES_QUOTA_FILTER_ENABLED| default('1') }}"
+
+  shell: /usr/local/bin/logstash-recentdata-dynamic-config.sh
+
+- name: install supervisor
+  sudo_user: root
+  sudo: yes
+  apt:
+    name: supervisor
+
+- name: apply jvm options
+  become: yes
+  template:
+    src: "roles/logstash_recentdata/files/jvm.options.j2"
+    dest: "/etc/logstash/jvm.options"
+
+- name: Ensure supervisor service
+  sudo_user: root
+  sudo: yes
+  service: name=supervisor state=restarted

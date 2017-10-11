@@ -1,0 +1,14 @@
+---
+
+- name: check whether the service file exists
+  stat:
+    path: "{{ instance_sysd_script }}"
+  register: elasticsearch_service
+
+- name: stop the elasticsearch service when it updates
+  sudo: yes
+  sudo_user: root
+  service:
+    name: "{{ es_instance_name }}_{{ sysd_script | basename }}"
+    state: stopped
+  when: elasticsearch_service.stat.exists

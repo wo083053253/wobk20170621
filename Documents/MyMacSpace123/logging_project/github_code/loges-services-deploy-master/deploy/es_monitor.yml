@@ -1,0 +1,22 @@
+- hosts: manager_servers
+  tasks:
+    - shell: cat /opt/deploy/es_clusters | awk '{print $1}'
+      register: cluster_name
+    - shell: sed -i '3c cluster_name:\ {{ cluster_name.stdout }}' /opt/deploy/roles/es_monitor/vars/main.yml
+
+- hosts: elasticsearch_http_servers
+#  serial: "{{ rolling_update_batch_size }}"
+  roles:
+    - role: es_monitor
+
+- hosts: elasticsearch_data_warm_servers
+  roles:
+    - role: es_monitor
+
+- hosts: elasticsearch_data_hot_servers
+  roles:
+    - role: es_monitor
+
+- hosts: elasticsearch_master_servers
+  roles:
+    - role: es_monitor

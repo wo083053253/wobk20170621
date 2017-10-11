@@ -1,0 +1,113 @@
+---
+#elasticsearch_master
+- name: restart elasticsearch_master_servers
+  hosts: elasticsearch_master_servers
+  serial: 1
+  sudo_user: root
+  sudo: yes
+  tasks:
+    - name: restart elasticsearch_master_servers
+      sudo_user: root
+      sudo: yes
+      service:
+        name: master_elasticsearch
+        enabled: yes
+        state: restarted
+      when: groups['elasticsearch_master_servers'] is defined and inventory_hostname in groups['elasticsearch_master_servers']
+
+#restart server
+- name: restart elasticsearch_http_servers server
+  hosts: elasticsearch_http_servers
+  serial: 1
+  sudo_user: root
+  sudo: yes
+  tasks:
+    - name: restart tenantinfo server
+      sudo_user: root
+      sudo: yes
+      service:
+        name: http_elasticsearch
+        enabled: yes
+        state: restarted
+      when: groups['elasticsearch_http_servers'] is defined and inventory_hostname in groups['elasticsearch_http_servers']
+
+#restart server
+- name: restart elasticsearch_data_hot_servers
+  hosts: elasticsearch_data_hot_servers
+  serial: 1
+  sudo_user: root
+  sudo: yes
+  tasks:
+    - name: restart elasticsearch_data_hot_servers
+      sudo_user: root
+      sudo: yes
+      service:
+        name: hot_elasticsearch
+        enabled: yes
+        state: restarted
+      when: groups['elasticsearch_data_hot_servers'] is defined and inventory_hostname in groups['elasticsearch_data_hot_servers']
+
+#restart server
+- name: restart warm_elasticsearch server
+  hosts: elasticsearch_data_warm_servers
+  serial: 1
+  sudo_user: root
+  sudo: yes
+  tasks:
+    - name: restart elasticsearch_data_warm_servers server
+      sudo_user: root
+      sudo: yes
+      service:
+        name: warm_elasticsearch
+        enabled: yes
+        state: restarted
+      when: groups['elasticsearch_data_warm_servers'] is defined and inventory_hostname in groups['elasticsearch_data_warm_servers']
+
+#restart elasticsearch_lb_servers
+- name: restart elasticsearch_lb_servers server
+  hosts: elasticsearch_lb_servers
+  serial: 1
+  sudo_user: root
+  sudo: yes
+  tasks:
+    - name: restart elasticsearch_lb_servers server
+      sudo_user: root
+      sudo: yes
+      service:
+        name: haproxy
+        enabled: yes
+        state: restarted
+      when: groups['elasticsearch_lb_servers'] is defined and inventory_hostname in groups['elasticsearch_lb_servers']
+
+#restart logstash server
+- name: restart logstash_objstore server
+  hosts: logstash_objstore_servers
+  serial: 1
+  sudo_user: root
+  sudo: yes
+  tasks:
+    - name: restart logstash_objstore server
+      sudo_user: root
+      sudo: yes
+      service:
+        name: supervisor
+        enabled: yes
+        state: restarted
+      when: groups['logstash_objstore_servers'] is defined and inventory_hostname in groups['logstash_objstore_servers']
+
+#restart logstash_servers
+- name: restart logstash server
+  hosts: logstash_servers
+  serial: 1
+  sudo_user: root
+  sudo: yes
+  tasks:
+    - name: restart logstash_servers server
+      sudo_user: root
+      sudo: yes
+      service:
+        name: supervisor
+        enabled: yes
+        state: restarted
+      when: groups['logstash_servers'] is defined and inventory_hostname in groups['logstash_servers']
+

@@ -1,0 +1,43 @@
+---
+# file group_vars/elasticsearch_lb_servers
+# Frontend settings.
+haproxy_frontend_name: 'elasticsearch-http-frontend'
+haproxy_frontend_bind_address: '*'
+haproxy_frontend_port: 9200
+haproxy_frontend_mode: 'http'
+
+# Backend settings.
+haproxy_backend_name: 'elasticsearch-http-backend'
+haproxy_backend_mode: 'http'
+haproxy_backend_balance_method: 'leastconn'
+haproxy_backend_httpchk: 'HEAD / HTTP/1.1\r\nHost:localhost'
+
+# List of backend servers.
+haproxy_backend_servers: '{{ ELASTICSEARCH_BACKEND_SERVERS }}'
+
+
+# Keepalived config
+router_id: "master"
+
+keepalived_options:
+  - name: log-detail
+keepalived_vrrp_scripts:
+  chk_haproxy:
+    script: '/usr/bin/killall -0 haproxy'
+    weight: 2
+    interval: 1
+
+keepalived_vrrp_instances:
+  elasticsearch_vip:
+    interface: eth0
+    state: MASTER
+    priority: 101
+    authentication:
+      auth_type: PASS
+      auth_pass: 'password'
+    virtual_router_id: '{{ VROUTER_ID }}'
+    virtual_ipaddresses:
+      - '{{ VIP_ADDRESS }}'
+    track_scripts:
+      - chk_haproxy
+

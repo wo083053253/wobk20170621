@@ -1,0 +1,230 @@
+heat_template_version: 2013-05-23
+description: manager_id node
+parameters:
+  image:
+    type: string
+    description: Image used for the server
+    default: ubuntu-amd64
+  key:
+    type: string
+    description: SSH key to connect to the server
+    default: heat_key
+  flavor:
+    type: string
+    description: flavor used by the server
+    default: m1.small
+  security_group:
+    type: string
+    description: security group
+  internal_network:
+    type: string
+    description: internal network of the group
+  external_network:
+    type: string
+    description: external_network network of the group
+  role_name:
+    type: string
+    description: Name of the role
+  availability_zone:
+    type: string
+    description: Hypervisor availability zone
+    default: nova
+  init_manager_private_key:
+    type: string
+  kafka_service_url:
+    type: string
+    description: kafka service url
+  kafka_shard_id:
+    type: string
+    description: kafka shard id
+  redstone_magic:
+    description: redstone access magic word
+    type: string
+    hidden: true
+    default: reddiamond:wsaq!23e
+  apt_repo:
+    description: aptly publish repository
+    type: string
+    default: logging
+  environment:
+    description: stack deploy environment
+    type: string
+    default: dev
+  carbonrelay:
+    description: carbonrelay IP address
+    type: string
+    default: 10.176.109.169
+    
+resources:
+  context:
+    type: vault.yaml
+
+  rand:
+    type: OS::Heat::RandomString
+    properties:
+      length: 6
+      sequence: lowercase
+
+  register_config:
+    type: IBM::Logmet::Registration
+
+  internal_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_param: internal_network }
+      security_groups:
+        - { get_param: security_group }
+      name:
+        str_replace:
+          template: stack-role-rand
+          params:
+            stack: { "Fn::Select": [ 0, { "Fn::Split": [ "-", { get_param: "OS::stack_name" }]}]}
+            role: { get_param: role_name }
+            rand: { get_resource: rand }
+
+  boot_script:
+    type: OS::Heat::SoftwareConfig
+    properties:
+      group: script
+      inputs:
+      - name: kafka_service_url
+      - name: kafka_shard_id
+      - name: id_rsa_contents
+      config: |
+          #!/bin/bash
+          echo "Running boot script"
+          # Install id_rsa
+          mkdir -p /root/.ssh
+          cd /root/.ssh
+          cat > id_rsa << EOF
+          $id_rsa_contents
+          EOF
+          chmod 0600 id_rsa
+          mkdir -p /opt/deploy/hosts
+          chmod 777 /opt/deploy
+          #copy key to ubuntu user
+          cp /root/.ssh/id_rsa* /home/ubuntu/.ssh/
+          chown -R ubuntu:ubuntu /home/ubuntu/.ssh
+          chmod 600 /home/ubuntu/.ssh/id_rsa*
+
+          apt-get install -y jq
+          # grab host data for kafka shard.
+          /opt/deploy/scripts/grabKafkaData.sh $kafka_service_url $kafka_shard_id
+          #keep kafka_service_url for grabKafkaData rerun
+          echo "$kafka_service_url" >> /opt/deploy/kafka_service_url
+          chown -R ubuntu:ubuntu /opt/deploy/hosts
+          #set 777 mode for hosts vips and nodes directory
+          chmod -R 777 /opt/deploy/hosts
+          chmod -R 777 /opt/deploy/nodes
+          chmod -R 777 /opt/deploy/vips
+
+  boot_deployment:
+    type: OS::Heat::SoftwareDeployment
+    properties:
+      config:
+        get_resource: boot_script
+      server:
+        get_resource: s
+      input_values:
+        kafka_service_url: { get_param: kafka_service_url }
+        kafka_shard_id: { get_param: kafka_shard_id }
+        id_rsa_contents: { get_param: init_manager_private_key }
+
+  s:
+    type: OS::Nova::Server
+    properties:
+      name:
+        str_replace:
+          template: stack-role-rand-octet
+          params:
+            stack: { "Fn::Select": [ 0, { "Fn::Split": [ "-", { get_param: "OS::stack_name" }]}]}
+            role: { get_param: role_name }
+            rand: { get_resource: rand }
+            octet: { "Fn::Select": [ 3, { "Fn::Split": [ '.', { "Fn::Select": [ "ip_address", { get_attr: [ internal_port, fixed_ips, 0 ]}]}]}]}
+      flavor: { get_param: flavor }
+      image: { get_param: image }
+      key_name: { get_param: key}
+      availability_zone: { get_param: availability_zone }
+      networks:
+        - port: { get_resource: internal_port }
+      software_config_transport: POLL_SERVER_CFN
+      user_data_format: SOFTWARE_CONFIG
+      user_data:
+        str_replace:
+          template: |
+            #!/bin/bash
+            rm -rf /var/lib/cloud/instance/userdata-finished
+            cat << EOF > /usr/local/bin/apt-get
+            #!/bin/bash
+            exec 100>/var/lock/apt-get.lock
+            flock 100
+            [[ "\$@" =~ "purge" ]] && export POLICY_RC_D=0
+            [[ "\$@" =~ "remove" ]] && export POLICY_RC_D=0
+            [[ "\$@" =~ "install" ]] && /usr/bin/apt-get -y install -f
+            /usr/bin/apt-get \$@
+            flock -u 100
+            EOF
+            cat << EOF > /usr/sbin/policy-rc.d
+            #!/bin/bash
+            exit \${POLICY_RC_D:-101}
+            EOF
+            chmod a+x /usr/local/bin/apt-get /usr/sbin/policy-rc.d
+            cat << EOF > /etc/apt/sources.list.d/logging.list
+            deb [trusted=yes] https://redstone_magic@redstone.edge.bluemix.net/aptly/public apt_repo main
+            EOF
+            cat << EOF > /etc/apt/sources.list
+            deb http://mirrors.service.networklayer.com/ubuntu xenial main restricted
+            deb http://mirrors.service.networklayer.com/ubuntu xenial-updates main restricted
+            deb http://mirrors.service.networklayer.com/ubuntu xenial universe
+            deb http://mirrors.service.networklayer.com/ubuntu xenial-updates universe
+            deb http://mirrors.service.networklayer.com/ubuntu xenial multiverse
+            deb http://mirrors.service.networklayer.com/ubuntu xenial-updates multiverse
+            deb http://mirrors.service.networklayer.com/ubuntu xenial-security main restricted
+            deb http://mirrors.service.networklayer.com/ubuntu xenial-security universe
+            deb http://mirrors.service.networklayer.com/ubuntu xenial-security multiverse
+            EOF
+            apt-get update
+            apt-get install -y --force-yes ansible ntp loges-services-deploy
+            #assign /opt/deploy owner with ubuntu
+            cd /opt
+            chown -R ubuntu:ubuntu ./deploy
+            chmod +x /opt/deploy/scripts/*.sh
+            #set 777 mode for hosts vips and nodes directory
+            mkdir -p /opt/deploy/hosts
+            mkdir -p /opt/deploy/nodes
+            mkdir -p /opt/deploy/vips
+            chmod -R 777 /opt/deploy/hosts
+            chmod -R 777 /opt/deploy/nodes
+            chmod -R 777 /opt/deploy/vips
+            cd /opt/deploy
+            echo metrics_host > carbonrelay
+            #vault pass
+            cat > .vault.pass << EOF
+            vault_contents
+            EOF
+            /opt/deploy/scripts/manager_init.sh stack_name hname environment apt_repo
+            #start os-collect-config
+            service os-collect-config start
+            touch /var/lib/cloud/instance/userdata-finished
+          params:
+            apt_repo: {get_param: apt_repo}
+            redstone_magic: {get_param: redstone_magic}
+            stack_name: { "Fn::Select": [ 0, { "Fn::Split": [ "-", { get_param: "OS::stack_name" }]}]}
+            hname: { get_attr: [ internal_port, name ] }
+            vault_contents: {get_attr: [context, vault_key]}
+            environment:  { get_param: environment }
+            metrics_host:  { get_param: carbonrelay }
+
+outputs:
+  first_address:
+    description: First ip address of the server
+    value: { get_attr: [ s, first_address ] }
+  security_group:
+    description: security group
+    value: { get_param: security_group }
+  config:
+    description: config for each member
+    value: { get_attr: [ register_config, config ] }
+  manager_id:
+    description: manager_id server
+    value: { get_resource: s }

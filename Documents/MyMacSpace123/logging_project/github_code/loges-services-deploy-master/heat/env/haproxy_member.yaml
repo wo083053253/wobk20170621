@@ -1,0 +1,166 @@
+heat_template_version: 2013-05-23
+description: haproxy node
+parameters:
+  image:
+    type: string
+    description: Image used for the server
+    default: ubuntu-amd64
+  key:
+    type: string
+    description: SSH key to connect to the server
+    default: heat_key
+  flavor:
+    type: string
+    description: flavor used by the server
+    default: m1.small
+  frontend_network:
+    type: string
+    description: internal network of the group
+    default: private
+  manager_ip:
+    type: string
+    description: manager server ip
+  init_manager_private_key:
+    type: string
+    description: SSH private key to connect to initial manager    
+  security_group:
+    type: string
+    description: security group
+  config:
+    type: string
+    description: register software config
+  role_name:
+    type: string
+    description: Role name for the HAProxy pair
+  role_list:
+    type: string
+    description: List of roles for the internal HAProxy pair
+    default: ""
+  virtual_ip:
+    type: string
+    description: Internal load balancer IP
+  availability_zone:
+    type: string
+    description: availability_zone used for servers
+    default: nova
+  cluster_name:
+    type: string
+    default: elasticsearch_1
+  cluster_num:
+    type: number
+    default: 1
+  server_group:
+    type: string
+    description: loadbalance group for anti-affinity
+
+resources:
+  rand:
+    type: OS::Heat::RandomString
+    properties:
+      length: 5
+      sequence: lowercase
+
+  port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_param: frontend_network }
+      security_groups:
+        - { get_param: security_group }
+      allowed_address_pairs:
+        - ip_address: { get_param: virtual_ip }
+      name:
+        str_replace:
+          template: stack-role-tag-rand
+          params:
+            stack: { "Fn::Select": [ 0, { "Fn::Split": [ "-", { get_param: "OS::stack_name" }]}]}
+            role: { get_param: role_name }
+            tag: "int"
+            rand: { get_resource: rand }
+
+  s:
+    type: OS::Nova::Server
+    properties:
+      name:
+        str_replace:
+          template: stack-role-rand-octet
+          params:
+            stack: { "Fn::Select": [ 0, { "Fn::Split": [ "-", { get_param: "OS::stack_name" }]}]}
+            role: { get_param: role_name }
+            rand: { get_resource: rand }
+            octet: { "Fn::Select": [ 3, { "Fn::Split": [ '.', { "Fn::Select": [ "ip_address", { get_attr: [ port, fixed_ips, 0 ]}]}]}]}
+      flavor: { get_param: flavor }
+      image: { get_param: image }
+      key_name: { get_param: key }
+      availability_zone: { get_param: availability_zone }
+      networks:
+        - port: { get_resource: port }
+      scheduler_hints: { group: { get_param: server_group } }
+      user_data_format: SOFTWARE_CONFIG
+      software_config_transport: POLL_SERVER_CFN
+      user_data:
+        str_replace:
+          template: |
+            #!/bin/bash
+            service os-collect-config start
+            #import id_rsa_content
+            # id_rsa
+            mkdir -p /home/ubuntu/.ssh
+            cd /home/ubuntu/.ssh
+            cat > id_rsa << EOF
+            id_rsa_contents
+            EOF
+            #cat > id_rsa.pub << EOF
+            #id_rsa_pub_contents
+            #EOF
+            chown ubuntu:ubuntu id_rsa
+            chmod 600 id_rsa
+            addr=$(/sbin/ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{print $1}')
+            hostname=`hostname -s`
+            echo "${addr}  ${hostname}" >> /etc/hosts
+            touch /var/lib/cloud/instance/userdata-finished
+          params:
+            id_rsa_contents: { get_param:  init_manager_private_key } 
+
+  do_reg:
+    type: OS::Heat::SoftwareDeployment
+    properties:
+      config: { get_param: config }
+      server: { get_resource: s }
+      input_values:
+        manager_ip: { get_param: manager_ip }
+        hostname: { get_attr: [ s, name ] }
+        role: { get_param: role_name }
+        cluster_num: { get_param: cluster_num }
+        cluster_name: { get_param: cluster_name }
+
+  vip_update:
+    type: OS::Heat::SoftwareConfig
+    properties:
+      group: script
+      inputs:
+        - name: manager_ip
+        - name: hostname
+        - name: role
+        - name: virtual_ip
+      config: |
+        #!/bin/bash
+        su - ubuntu -c "scp -o StrictHostKeyChecking=no ubuntu@$manager_ip:/opt/deploy/scripts/vip_update.sh /tmp/vip_update.sh"
+        bash /tmp/vip_update.sh $manager_ip ${hostname:-''} ${role:-''} ${virtual_ip:-''}
+
+  do_vip_update:
+    type: OS::Heat::SoftwareDeployment
+    properties:
+      config: { get_resource: vip_update }
+      server: { get_resource: s }
+      input_values:
+        manager_ip: { get_param: manager_ip }
+        hostname: { get_attr: [ s, name ] }
+        role: { get_param: role_name }
+        virtual_ip: { get_param: virtual_ip }
+
+outputs:
+  first_address:
+    value: { get_attr: [ s, first_address ] }
+  ports:
+    value: { get_resource: port }
+

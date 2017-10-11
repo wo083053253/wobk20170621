@@ -1,0 +1,25 @@
+- name: check if there are dangling images to cleanup
+  sudo_user: root
+  sudo: yes
+  shell: sudo docker images -q -f dangling=true | wc -l
+  register: dangling_image
+
+- name: remove dangling images
+  sudo_user: root
+  sudo: yes
+  shell: docker rmi $(docker images -q -f dangling=true)
+  when: dangling_image.stdout != "0"
+  ignore_errors: yes
+
+- name: check if there are obsolete images to cleanup
+  sudo_user: root
+  sudo: yes
+  shell: sudo docker images | grep {{ image_name }} | grep -v {{ registry }}/{{ image_name }}.*{{ image_tag }} | wc -l
+  register: image_to_cleanup
+
+- name: remove obsolete images
+  sudo_user: root
+  sudo: yes
+  shell: docker rmi $( sudo docker images | grep {{ image_name }} | grep -v {{ registry }}/{{ image_name }}.*{{ image_tag }}  | tr -s ' ' |  cut -d ' ' -f 1-2 | sed 's/ /:/')
+  when: image_to_cleanup.stdout != "0"
+  ignore_errors: yes

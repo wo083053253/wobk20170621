@@ -1,0 +1,38 @@
+# source.list is appended redstone repo, skip that
+- name: ensure logging sources.list installed
+  sudo_user: root
+  sudo: yes
+  template: dest="/etc/apt/sources.list.d/logging.list" src="sources.list.j2"
+
+- name: Check if dashboard_proxy is in /etc/hosts
+  sudo_user: root
+  sudo: yes
+  shell: grep -q "{{ internal_nginx_lb_ip }}  {{ dashboard_proxy }}" /etc/hosts
+  register: etc_host_entry
+  failed_when: "etc_host_entry.rc == 2"
+  when: internal_nginx_lb_ip is defined
+   
+- name: Remove dashboard_proxy DNS entry
+  sudo_user: root
+  sudo: yes
+  lineinfile:
+     dest: /etc/hosts
+     regexp: '^{{ internal_nginx_lb_ip }}'
+     line: '{{ internal_nginx_lb_ip }} {{ dashboard_proxy }}'
+     state: absent
+  when: etc_host_entry.rc == 0
+
+- name: Add dashboard_proxy DNS entry for edge and dev
+  sudo_user: root
+  sudo: yes
+  shell: echo "{{ internal_nginx_lb_ip }}  {{ dashboard_proxy }}" >> /etc/hosts
+  when: etc_host_entry.rc == 1 and internal_nginx_lb_ip is defined and ( deploy_environment == "dev" or deploy_environment == "edge" )
+
+- name: Add dashboard_proxy DNS entry for prestaging
+  sudo_user: root
+  sudo: yes
+  shell: echo "{{ internal_nginx_lb_ip }}  {{ dashboard_proxy }}" >> /etc/hosts
+  when: etc_host_entry.rc == 1 and internal_nginx_lb_ip is defined and STACK_NAME.find('prestaging') != -1
+
+- name: ensure collectd is properly configured
+  include: mt_lsf.yml

@@ -1,0 +1,31 @@
+{
+    # The multi-tenant section defines the owner of the log data
+    # in a multi-tenant environment
+    # This file is generated from the /etc/init/mt-logstash-forwarder.conf
+    # upstart script
+    "multitenant": {
+        # Tell the tenant_id, password and other keypair values to insert
+        "tenant_id": "REPLACE_SPACEID",
+        "password" : "REPLACE_LOGGING_TOKEN",
+        "inserted_keypairs" : {
+            "stack_id" : "monitor",
+            "instance_id" : "REPLACE_HOSTNAME"
+        }
+    },
+
+   "network": {
+        # A list of downstream servers listening for our messages.
+        # logstash-forwarder will pick one at random and only switch if
+        # the selected one appears to be dead or unresponsive
+        "servers": [ "REPLACE_OPVIS_HOST:9091" ],
+
+        # Network timeout in seconds. This is most important for
+        # logstash-forwarder determining whether to stop waiting for an
+        # acknowledgement from the downstream server. If an timeout is reached,
+        # logstash-forwarder will assume the connection or server is bad and
+        # will connect to a server chosen at random from the servers list.
+        "timeout": 15
+    }
+
+}
+

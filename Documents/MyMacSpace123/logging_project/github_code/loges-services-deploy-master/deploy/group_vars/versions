@@ -1,0 +1,39 @@
+---
+# file: group_vars/images
+# the image tag for each component
+# - leave op_services-alogpass_version for dedicated-local deploys to remove it
+op_services_alogmon_version: latest
+op_services_alogpass_version: latest
+op_services_tenantinfo_version: latest
+op_services_mtlumberjack_version: latest
+op_services_memcache_version: latest
+op_services_elasticsearch_version: latest
+op_services_elasticsearch2_version: latest
+op_services_elasticsearch5_version: latest
+op_services_fauxkeystone_version: latest
+op_services_kafka_version: latest
+op_services_kafkametrics_version: latest
+op_services_kibana_version: latest
+op_services_logstash_version: latest
+op_services_logstash_objstore_version: latest
+op_services_monitor_version: latest
+op_services_testframework_version: latest
+op_services_nginx_version: latest
+op_services_zookeeper_version: latest
+op_services_triage_version: latest
+op_services_esdump_version: latest
+op_services_dashboards_version: latest
+op_services_ucdagent_version: latest
+op_services_deploy_version: latest
+op_services_operation_version: latest
+op_services_sidecar_version: latest
+op_services_redis_version: latest
+op_services_mtlumberjack_lb_version: latest
+op_services_nginx_lb_version: latest
+op_services_multiserver_lb_version: latest
+op_services_eventgen_binaries_version: latest
+op_services_eventgen_rest_version: latest
+op_services_eventgen_monitor_version: latest
+op_services_eventgen_monitor_java_version: latest
+op_services_splitter_version: latest
+op_services_dashboard_es_version: latest

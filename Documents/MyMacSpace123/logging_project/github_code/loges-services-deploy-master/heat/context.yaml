@@ -1,0 +1,4 @@
+heat_template_version: 2015-04-30
+outputs:
+  private_key:
+    value: {get_file: data/private_key}

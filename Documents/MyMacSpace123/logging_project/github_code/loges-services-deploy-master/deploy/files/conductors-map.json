@@ -1,0 +1,50 @@
+{ "conductor_space" : "272e088e-3a18-4654-a6f7-52ce8b5a6a3e",
+  "location" : "dal09",
+  "crn_public_prefix" : "crn/v1/staging/public",
+  "components" : [ { "containers" : "2e23a1bb-ce39-4022-ab34-7d205a2af3e8" },
+                   { "registry" : "13a64632-b45b-4853-8b91-99bf2b48319a" },
+                   { "logmet" : "ac356e26-4606-4e9f-b867-1b1f3a7113b3" },
+                   { "active-deploy" : "8b6bf643-e694-4d68-a4e5-40bd9519d48c" },
+                   { "common-service-broker" : "631e0ec6-6a03-47cc-8b64-eae710de3264" },
+                   { "netint": "3ab3520b-4aa7-4fe4-91ce-bb05f250a0b2" },
+                   { "dashboard": "b2b0d2f8-499f-4826-9db7-2e29ffc64d9b" },
+                   { "object-storage": "16ce993a-ce46-407d-8666-f2fd6c2eaddd" },
+                   { "chaosmonkey": "81fe2b7c-43ad-4c5f-9624-8831b9f13e70" },
+                   { "key-management": "5187f101-39f8-4b7f-b961-5ef2cb65a7e9"},
+                   { "cloudops" : "0d30444d-a584-477d-869b-a3f63e9c6e4d" },
+                   { "access-control" : "0163b86d-0722-4f08-a67a-15911b639628" },
+                   { "autoscale" : "7f5ccb24-4984-46f0-ad03-a2209fd4b417" },
+                   { "servicediscovery-stage" : "2b281976-0fee-4d4a-8aab-8b07aa54863a" },
+                   { "edge" : "d428bae0-5bab-4a4a-90c4-bd2366fb31d8" },
+                   { "vm-ceilometer-metrics" : "6806bf5a-4782-4076-923f-aa246dd07f1a" },
+                   { "vm-logging" : "18cfb262-2b3a-4209-abc3-0123172d09d0" },
+                   { "eventgen" : "3f002464-6d62-4565-bdb9-0b361c056b5d" },
+                   { "Conductors-infra" : "51e2d018-b05e-4d51-849f-e2b7d9937c46" },
+                   { "softlayer-sre" : "d4c8fc86-9dce-4d62-ac65-d79cecb1e9de" },
+                   { "content-delivery" : "8fb5541f-39ee-4d26-91ea-9c4f41103551" },
+                   { "OS-InnovationB" : "79d891fb-ee63-4a18-9018-efe491541a4b" },
+                   { "alchemy-lbaas" : "a8d1157a-c61d-4c0d-8951-2b602f199807" },
+                   { "softlayer_dev_compute" : "765e820e-e794-4d40-b43d-d176478ba70f" },
+                   { "ims": "344aa5cb-8333-4e15-8a38-38e707590ed3"},
+                   { "pnp" : "484ad693-2b78-43e6-b4df-8ccbdf2a0b2a" },
+                   { "vpnaas-beta" : "043ba84f-2f8b-4fa1-b886-574bfaa5c637"},
+                   { "frontdoor" : "35b2b682-c40a-4ed7-9249-f92f01142b51" },
+                   { "unified-network-service" : "9d689dd2-35f0-4551-a82a-9a2dabb286cf" },
+                   { "vulnerability_advisor" : "02d4d42b-e3e5-475e-9a93-f636641a559c" },
+                   { "production-verification-gate" : "a047d49d-69ec-4abe-a10e-bc346e6edd6e" }
+	       ],
+  "logmet_crn_mappings" : [ { "source" : "345aa9ab-e440-4e60-9b73-d9e21b7b0a43/stage1",
+                         "target" : "ac356e26-4606-4e9f-b867-1b1f3a7113b3/{crn_public_prefix}/logmet/{location}/a-434462/stage1/virtual-machine" }
+                     ],
+  "crawler_crn_mappings" : {
+               "crawler_crn_space" : "c0d75e98-022e-45f8-ada5-2b0f82329ce4",
+               "container_services" : [
+                        "Common-Service-Broker",
+                        "ServiceProxy",
+                        "ServiceDiscovery"
+                                      ]
+                           },
+  "other_mappings" : [ { "source" : "345aa9ab-e440-4e60-9b73-d9e21b7b0a43/stage1",
+                         "target" : "ac356e26-4606-4e9f-b867-1b1f3a7113b3/dal09" }
+                     ]
+}

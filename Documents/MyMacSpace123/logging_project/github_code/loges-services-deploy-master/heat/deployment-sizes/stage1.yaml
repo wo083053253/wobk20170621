@@ -1,0 +1,22 @@
+# This is the standard production configuration for the logmet environment
+parameters:
+  min_size: {"manager": 1,
+           "elasticsearch_data": 10,
+           "elasticsearch_http": 3,
+           "elasticsearch_master": 3,
+           "logstash": 19,
+           "logstash_fastforwarder": 4,
+           "logstash_objstore": 19}
+  flavor: {"manager": "4x8x25",
+           "elasticsearch_data": "elasticsearch-staging",
+           "elasticsearch_http": "10x32x100",
+           "elasticsearch_master": "10x32x100",
+           "logstash": "4x10x25",
+           "logstash_fastforwarder": "4x8x25",
+           "logstash_objstore": "4x10x25"}
+  images: { "default": "ubuntu-amd64",
+            "elasticsearch_data": "ubuntu-amd64-es"}
+parameter_defaults:
+  availability_zone: { "default": "nova",
+            "kafka": "nova",
+            "elasticsearch_data": "nova" }

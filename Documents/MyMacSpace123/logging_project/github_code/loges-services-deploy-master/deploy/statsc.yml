@@ -1,0 +1,11 @@
+- hosts: [logstash_servers, logstash_objstore_servers]
+  sudo_user: root
+  sudo: yes 
+  tasks:
+    - apt:
+        name: statsc
+        state: latest
+        update_cache: yes
+    - service:
+        name: collectd
+        state: restarted

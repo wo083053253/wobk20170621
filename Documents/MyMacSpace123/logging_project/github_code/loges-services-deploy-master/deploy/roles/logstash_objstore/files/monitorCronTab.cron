@@ -1,0 +1,1 @@
+*/10 * * * * /opt/monitorKafka.sh >/dev/null 2>&1

@@ -1,0 +1,15 @@
+LoadPlugin write_metric_mtlumberjack
+
+<Plugin write_metric_mtlumberjack>
+    <Logstash>
+        Host "{{ target_metrics }}"
+        Port "9095"
+        GraphitePrefix "{{ cluster_name }}."
+        SpaceId "{{ target_space_id }}"
+        LoggingToken "{{ target_token }}"
+        GraphiteSeparateInstances  true
+        BufferSize {{ BufferSize }}
+        Compress true
+        FlushInterval 30        
+    </Logstash>
+</Plugin>

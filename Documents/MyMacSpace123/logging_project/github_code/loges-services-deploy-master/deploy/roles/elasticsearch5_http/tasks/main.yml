@@ -1,0 +1,107 @@
+---
+- name: check-set-parameters
+  include: elasticsearch-parameters.yml
+  tags:
+      - always
+
+- name: stop elasticsearch service before upgrade
+  include: elasticsearch-service-stop.yml
+  tags:
+      - always
+
+- name: clean java process
+  sudo_user: root
+  sudo: yes
+  shell: ps -ef | grep java | grep -v grep | awk '{print $2}' | xargs kill -9
+  when: rolling_update_batch_size is defined and rolling_update_batch_size != "100%"
+
+- name: Update apt cache if not done today
+  become: yes
+  apt: update_cache=yes
+
+- name: Uninstall elasticserach5
+  sudo_user: root
+  sudo: yes
+  apt: pkg={{ item }} state=absent purge=yes
+  with_items:
+    - elasticsearch5
+
+- name:  install elasticserach5 debian package
+  apt:
+    name: elasticsearch5
+    state: latest
+
+- name: detect if this is a systemd based system
+  command: cat /proc/1/comm
+  register: init
+
+- set_fact: use_systemd=True
+  when: init.stdout == 'systemd'
+
+- set_fact: use_systemd=False
+  when: init.stdout != 'systemd'
+
+- name: run static script to install kafka
+  sudo_user: root
+  sudo: yes
+  shell: /usr/local/bin/kafka-static-config.sh
+  environment:
+    ES_VERSION: {{ es_version }}
+    PID_DIR: {{ pid_dir }}
+    CONF_DIR: {{ conf_dir }}
+    DATA_DIRS: {{ data_dirs }}
+    LOG_DIR: {{ log_dir }}
+    ES_USER: {{ es_user }}
+    ES_GROUP: {{ es_group }}
+    INSTANCE_SYSD_SCRIPT: {{ instance_sysd_script }}
+    INSTANCE_INIT_SCRIPT: {{ instance_init_script }}
+    USE_SYSTEMD: {{ use_system_d }}
+
+- include: elasticsearch-plugins.yml
+  when: es_plugins is defined or es_plugins_reinstall
+  tags:
+      - plugins
+
+  #We always execute xpack as we may need to remove features
+- include: xpack/elasticsearch-xpack.yml
+  tags:
+      - xpack
+
+
+- name: Run es5-dynamic-config script (modifying Elasticsearch parameters)
+  sudo_user: root
+  sudo: yes
+  shell: /usr/local/bin/es5-dynamic-config.sh 
+  environment:
+    NODE_HOSTNAME: {{ instance_suffix }} 
+    CLUSTER_NAME: {{ cluster.name }}
+    ES_INSTANCE_NAME: {{ es_instance_name }}
+    NODE_MASTER: "true"
+    NODE_DATA: "true"
+    ELIGIBLE_AS_MASTER: "true"
+    ALLOW_STORE_DATA: "true"
+    CONF_PATH: {{ conf_dir }}
+    DATA_PATH: {{ data_dirs }}
+    LOG_PATH: {{ log_dir }}
+    MAX_OPEN_FILES: "262144"
+    MAX_LOCKED_MEMORY: "unlimited"
+    MAX_MAP_COUNT: "262144"
+    INDICES_FIELDDATA_CACHE_SIZE: "25%"
+    THREAD_POOL_BULK_QUEUE_SIZE: "2000"
+    THREAD_POOL_SEARCH_SIZE: "10"
+    BOOTSTRAP_MEMORY_LOCK: "false"
+    ALLOCATION_WATERMARK_LOW: "2gb"
+    ALLOCATION_WATERMARK_HIGH: "1gb"
+    NUMBER_OF_SHARDS: "5"
+    NUMBER_OF_REPLICAS: "0"
+    INDEX_TRANSLOG_FLUSH_THRESHOLD_SIZE: "500m"
+    RECOVER_AFTER_MASTER_NODES: "1"
+    RECOVER_AFTER_DATA_NODES: "1"
+    EXPECTED_NODES: "1"
+    MINIMUM_MASTER_NODES: "1"
+
+- include: elasticsearch-service.yml
+  tags:
+      - service
+
+- meta: flush_handlers

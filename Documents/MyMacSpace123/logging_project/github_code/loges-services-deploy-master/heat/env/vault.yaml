@@ -1,0 +1,5 @@
+heat_template_version: 2015-04-30
+outputs:
+  vault_key:
+    description: ansible vault key in context
+    value: {get_file: .vault.pass}

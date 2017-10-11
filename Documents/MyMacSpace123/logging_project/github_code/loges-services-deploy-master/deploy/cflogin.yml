@@ -1,0 +1,55 @@
+- hosts: localhost
+  tasks: 
+  - include: roles/common/tasks/cloudfoundry_ic.yml
+
+  - name: check if existing .dockercfg valid
+    sudo_user: root
+    sudo: yes
+    shell: find /root/.dockercfg -mmin -{{ cf_auth_refresh_interval }} -type f | wc -l
+    register: valid_config_count
+  
+  - name: cf login
+    sudo_user: root
+    sudo: yes
+    shell: cf login -a "{{ BLUEMIX_AUTH_API }}" -u "{{ DOCKER_REPO_USER_ID }}" -p "{{ DOCKER_REPO_PASSWORD }}" -o "{{ DOCKER_REPO_ORG_NAME }}" -s "{{ DOCKER_REPO_SPACE_NAME }}"
+    when: valid_config_count.stdout == "0"
+    register: cf_login
+    until: cf_login.stdout.find("FAILED") == -1
+    retries: 5
+    delay: 5
+  
+  - name: cf ic login
+    sudo_user: root
+    sudo: yes
+    shell: cf ic login
+    when: valid_config_count.stdout == "0"
+    register: cf_ic_login
+    until: cf_ic_login.rc == 0 and cf_ic_login.stdout.find("FAILED") == -1
+    retries: 5
+    delay: 5
+
+  - file: path=/opt/deploy/files/manager state=directory mode=0755
+  
+  - name: copy cf config
+    sudo_user: root
+    sudo: yes
+    shell: cp -r /root/.cf /opt/deploy/files/manager
+    when: valid_config_count.stdout == "0"
+        
+  - name: copy ice config
+    sudo_user: root
+    sudo: yes
+    shell: cp -r /root/.ice /opt/deploy/files/manager
+    when: valid_config_count.stdout == "0"
+        
+  - name: copy dockercfg config
+    sudo_user: root
+    sudo: yes
+    shell: cp /root/.dockercfg /opt/deploy/files/manager  
+    when: valid_config_count.stdout == "0"
+        
+  - name: copy cf config
+    sudo_user: root
+    sudo: yes
+    shell: chown -R stack:stack /opt/deploy/files/manager    
+    when: valid_config_count.stdout == "0"      

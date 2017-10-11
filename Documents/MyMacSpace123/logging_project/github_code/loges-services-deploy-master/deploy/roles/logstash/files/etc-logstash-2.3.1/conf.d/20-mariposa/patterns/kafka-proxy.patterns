@@ -1,0 +1,2 @@
+ASPNTIMESTAMP %{YEAR:year}\/%{MONTHNUM:month}\/%{MONTHDAY:day}\ %{HOUR:hour}:%{MINUTE:minute}:%{SECOND:second}\ %{TZ:timezone}
+

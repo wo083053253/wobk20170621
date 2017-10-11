@@ -1,0 +1,92 @@
+- hosts: kafka_servers
+  vars_files:
+    - group_vars/kafka_topics
+  vars:
+    zk:  "--zookeeper {{ groups['zookeeper_servers']|join(':2181,') }}:2181"
+    countKafka: "{{ groups['kafka_servers'] | length  }}"
+    create: "/opt/kafka/bin/kafka-topics.sh --create"
+    list: "/opt/kafka/bin/kafka-topics.sh --list"
+    kafkaTopic: alchemy-logs-new
+    partitions: "--partitions {{NUMBER_OF_LOG_PARTITIONS | default(19) }}"
+    repl_factor: "--replication-factor"
+    repl_factor_value: "{{LOG_REPLICATION_FACTOR | default(1) }}"
+
+  tasks:
+    - shell: echo xxxxxxx Completed deploying on all the Kafka Nodes xxxxxxxxxxxxxxxxxxxxxxx
+      run_once: true
+
+    - shell: echo xxxxxxx Count of kafka servers "{{ countKafka }}" xxxxxxxxxxxxxxxxxxxxxxxxxx
+      run_once: true
+
+    - name: Check if es_cluster file exists
+      local_action: stat path=es_clusters
+      register: clusters_file
+      run_once: true
+
+    - set_fact: contents="{{ lookup('file', '/opt/deploy/es_clusters', wantlist=True) }}"
+      when: clusters_file.stat.exists
+      run_once: true
+
+    - set_fact: contents=[]
+      when: clusters_file.stat.exists == false
+      run_once: true
+
+    - name: Create the kafka topic - dev
+      shell: "{{create}} --topic {{kafkaTopic}} {{partitions}} {{repl_factor}} 1 {{zk}}"
+      register: result
+      until: result.stdout.find("Created topic") != -1
+      retries: 5
+      delay: 30
+      when:
+        - "{{countKafka}} == 1"
+        - MULTI_CLUSTER_ES_ENABLED == 0
+      run_once: true
+
+    - name: Create the topics for logs
+      shell: "{{create}} --topic {{kafkaTopic}} {{partitions}} {{repl_factor}} {{ repl_factor_value }} {{zk}}"
+      register: result
+      until: result.stdout.find("Created topic") != -1
+      retries: 5
+      delay: 30
+      when:
+        - "{{countKafka}} > 1"
+        - MULTI_CLUSTER_ES_ENABLED == 0
+      run_once: true
+
+    - name: Check kafka topic if exist
+      shell: "{{list}} {{zk}}|grep -q {{kafkaTopic}}-{{ item.split(' ')[0] }}"
+      register: checkresult
+      with_items: "{{ contents }}"
+      when:
+        - MULTI_CLUSTER_ES_ENABLED == 1
+        - clusters_file.stat.exists
+      run_once: true
+      ignore_errors: yes
+
+    - name: Create the cluster topics - dev
+      shell: "{{create}} --topic {{kafkaTopic}}-{{ item.split(' ')[0] }} {{partitions}} {{repl_factor}} 1 {{zk}}"
+      register: result
+      until: result.stdout.find("Created topic") != -1
+      retries: 5
+      delay: 30
+      with_items: "{{ contents }}"
+      when:
+        - MULTI_CLUSTER_ES_ENABLED == 1
+        - "{{countKafka}} == 1"
+        - clusters_file.stat.exists
+        - checkresult|failed
+      run_once: true
+
+    - name: Create the cluster topics
+      shell: "{{create}} --topic {{kafkaTopic}}-{{ item.split(' ')[0] }} {{partitions}} {{repl_factor}} {{ repl_factor_value }} {{zk}}"
+      register: result
+      until: result.stdout.find("Created topic") != -1
+      retries: 5
+      delay: 30
+      with_items: "{{ contents }}"
+      when:
+        - MULTI_CLUSTER_ES_ENABLED == 1
+        - "{{countKafka}} > 1"
+        - clusters_file.stat.exists
+        - checkresult|failed
+      run_once: true

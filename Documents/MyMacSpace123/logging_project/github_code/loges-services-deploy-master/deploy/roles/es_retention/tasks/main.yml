@@ -1,0 +1,39 @@
+#elasticsearch data retention service
+- name: ensure all sources are updated
+  sudo_user: root
+  sudo: yes
+  apt: update_cache=yes
+
+- name: Latest version of esretention is installed
+  sudo_user: root
+  sudo: yes
+  apt: pkg={{ item }} state=latest
+  with_items:
+    - esretention
+
+# start as a cron job
+- name: prepare the configuration files for esrention
+  sudo_user: root
+  sudo: yes
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: root
+    group: root
+    mode: 0644
+  with_items:
+    - { src: "esretention_cron_env.j2", dest: "/etc/default/esretention_cron_env" }
+
+- file:
+    path: /var/log/esretention
+    state: directory
+    mode: 0755
+
+- cron:
+    name: elasticsearch-data-retention
+    minute: "10"
+    hour: "*/6"
+    day: "*"
+    month: "*"
+    user: root
+    job: "source /etc/default/esretention_cron_env; /usr/bin/esretention"

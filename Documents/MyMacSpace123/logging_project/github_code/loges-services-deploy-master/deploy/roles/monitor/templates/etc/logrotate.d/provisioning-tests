@@ -1,0 +1,9 @@
+/var/log/provisioning-tests.log {
+    rotate 3
+    size 50M
+    missingok
+    notifempty
+    compress
+    copytruncate
+    su
+}

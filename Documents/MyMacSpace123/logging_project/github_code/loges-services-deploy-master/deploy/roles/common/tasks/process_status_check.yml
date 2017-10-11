@@ -1,0 +1,9 @@
+- name: check process status
+  sudo_user: root
+  sudo: yes
+  shell: docker exec "{{ container_name }}" supervisorctl status "{{ process_name }}" | grep RUNNING | wc -l
+  when: container_started.stdout == "1" and config_stack is defined
+  register: process_status
+  until: process_status.stdout == "1"
+  retries: 6
+  delay: 10

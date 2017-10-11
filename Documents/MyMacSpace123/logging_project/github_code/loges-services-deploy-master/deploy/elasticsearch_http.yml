@@ -1,0 +1,5 @@
+- hosts: elasticsearch_http_servers
+  roles:
+    - { role: elasticsearch }
+  vars_files:
+    - group_vars/elasticsearch_http_servers

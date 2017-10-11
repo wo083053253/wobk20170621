@@ -1,0 +1,17 @@
+#for prod-dallas
+#SLACK_WEB_HOOK="https://hooks.slack.com/services/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"
+#ENVIRONMENT="production-dal09"
+
+#for prod-uk
+#SLACK_WEB_HOOK="https://hooks.slack.com/services/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"
+#ENVIRONMENT="production-lon02"
+
+#for staging/dal09
+#SLACK_WEB_HOOK=" https://hooks.slack.com/services/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"
+#ENVIRONMENT="staging-dal09"
+
+#for dev
+SLACK_WEB_HOOK="https://hooks.slack.com/services/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"
+ENVIRONMENT="dev"
+
+STOP_APP_WHEN_STOP="true"

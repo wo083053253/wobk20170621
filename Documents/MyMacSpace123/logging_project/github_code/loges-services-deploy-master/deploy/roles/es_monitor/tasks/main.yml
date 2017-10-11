@@ -1,0 +1,31 @@
+---
+# tasks file for es_monitor
+- name: include the vars
+  include_vars: "main.yml"
+
+- name: copy the Elasticsearch collectd file
+  sudo_user: root
+  sudo: yes
+  template:
+    src: "elasticsearch_monitor.conf.j2"
+    dest: "/etc/collectd/collectd.conf.d/elasticsearch_monitor.conf"
+    owner: root
+    group: root
+    mode: 0644
+
+- name: copy the directory to the remote machine
+  sudo_user: root
+  sudo: yes
+  copy:
+    src: "collectd-elasticsearch"
+    dest: "/usr/share/collectd/"
+    owner: root
+    group: root
+    mode: 0755
+
+- name: restart the collectd service
+  sudo_user: root
+  sudo: yes
+  service:
+    name: collectd
+    state: restarted

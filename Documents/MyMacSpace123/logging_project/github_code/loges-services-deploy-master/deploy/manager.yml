@@ -1,0 +1,7 @@
+- hosts: localhost
+  serial: "{{ rolling_update_batch_size }}"
+  roles:
+    - role: manager
+    - role: es_retention
+  vars_files:
+    - group_vars/es_retention

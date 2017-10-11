@@ -1,0 +1,5 @@
+- include: cloudfoundry_ic.yml
+  when: registry.startswith("registry.eu-gb.bluemix.net/logmet") or registry.startswith("registry.ng.bluemix.net/logmet") 
+
+- include: bluebox_registry.yml
+  when: registry == "registry.bluebox.net:5000/logmet_dev"

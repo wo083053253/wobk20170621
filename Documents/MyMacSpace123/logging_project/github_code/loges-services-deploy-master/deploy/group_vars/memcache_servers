@@ -1,0 +1,3 @@
+---
+# file group_vars/memcache_servers
+memcache_ram: 2048

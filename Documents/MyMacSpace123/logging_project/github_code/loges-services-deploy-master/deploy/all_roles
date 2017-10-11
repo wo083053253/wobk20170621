@@ -1,0 +1,10 @@
+elasticsearch_master
+elasticsearch_data_hot
+elasticsearch_data_warm
+elasticsearch_http
+elasticsearch_lb
+logstash
+logstash_objstore
+manager
+logstash_recentdata
+#end

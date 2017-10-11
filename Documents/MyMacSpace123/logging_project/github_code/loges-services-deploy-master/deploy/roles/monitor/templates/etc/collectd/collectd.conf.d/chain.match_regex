@@ -1,0 +1,16 @@
+LoadPlugin "match_regex"
+PostCacheChain "PostCache"
+<Chain "PostCache">
+    <Rule "rewrite_ibmcrn">
+        <Match "regex">
+               Plugin "ibm_crn"
+        </Match>
+        <Target "write">
+               Plugin "write_graphite/ibm_crn"
+        </Target>
+        <Target "return">
+        </Target>
+    </Rule>
+    <Target "write">
+    </Target>
+</Chain>

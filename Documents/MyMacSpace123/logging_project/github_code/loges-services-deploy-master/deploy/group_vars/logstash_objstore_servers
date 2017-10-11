@@ -1,0 +1,24 @@
+---
+# file group_vars/logstash_objstore_servers
+logstash_heap_size: 2g
+
+# logs restore
+
+objects_thread_pool: 10
+notification_thread_pool: 10
+notification_interval: 2
+token_advance_time: 3600
+
+# logs backup
+
+idle_flush_time: 60
+flush_size: 500
+request_queue_size: 1000
+swift_client_workers: 10
+event_buffer_size: 400000
+time_force_upload: 10800
+periodic_task_interval: 10800
+object_size: 20971520
+size_writing_file_queue: 1000
+# log retention: 7 days
+x_delete_after: 604800

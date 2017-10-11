@@ -1,0 +1,78 @@
+- set_fact:
+    container_name: logstash_fastforwarder
+
+- name: Indicate the container runs logstash
+  set_fact: container_runs_logstash=true
+
+- include: ../../common/tasks/setup_sidecar.yml
+
+- include: ../../common/tasks/docker-registry.yml
+
+- set_fact:
+    process_name: logstash
+    image_name: op-services-logstash
+    image_tag: "{{ op_services_logstash_version }}"
+
+- name: logstash_fastforwarder
+  sudo_user: root
+  sudo: yes
+  docker:
+    name: logstash_fastforwarder
+    state: reloaded
+    restart_policy: always
+    restart_policy_retry: 3
+    hostname: "{{ ansible_hostname }}"
+    insecure_registry: yes
+    image: "{{ registry }}/{{ image_name }}:{{ image_tag }}"
+    pull: always
+    hostname: "{{ ansible_hostname }}"
+    ports:
+    - "{{ ansible_eth0.ipv4.address }}:9300:9300"
+    volumes:
+    - "/container_logs:/var/log"
+    env:
+      CLUSTER_NAME: logstash_fastforwarder
+      TOPIC_ID: alchemy-logs-ff
+      CONSUMER_GROUP_ID: "{{ consumer_group_id }}"
+      ELASTICSEARCH_CLUSTER: "{{ ES_CLUSTER_NAME | default('elasticsearch')}}"
+      ZOOKEEPER_SERVERS: "{{ zookeeper_servers }}"
+      TENANTINFO_IP: "{{ TENANTINFO_IP }}"
+      TENANTINFO_PORT: "{{ TENANTINFO_PORT }}"
+      ELASTICSEARCH_HTTP_NODE_LIST: "{{ ELASTICSEARCH_HTTP_NODE_LOGSTASH }}"
+      ELASTICSEARCH_HTTP_LIST: "{{ ELASTICSEARCH_HTTP_LIST }}"
+      DOCKER_HOST_IP: "{{ ansible_eth0.ipv4.address }}"
+      carbon_relay: "{{ carbon_relay }}"
+      GRAPHITE_ENVIRONMENT: "{{ graphite_environment }}"
+      METRICS_HOST: "{{ metrics_host }}"
+      METRICS_PORT: "{{ metrics_port }}"
+      METRICS_DATA_COLLECTION_SERVER: "{{ metrics_target }}"
+      BLUEMIX_SPACE_ID: "{{ metrics_target_spaceid }}"
+      BLUEMIX_LOGGING_TOKEN: "{{ metrics_target_token }}"
+      LOGMET_ENVIRONMENT: "{{ logmet_environment }}"
+      LS_HEAP_SIZE: "{{ logstash_heap_size }}"
+      ESALIAS_ENABLED: "{{ ESALIAS_ENABLED }}"
+      ESALIAS_ENABLE_DATE: "{{ ESALIAS_ENABLE_DATE }}"
+      MULTI_TOPICS_ENABLED: "{{ MULTI_TOPICS_ENABLED }}"
+      RENAME_FILTER_ENABLED: "{{ RENAME_FILTER_ENABLED }}"
+  register: docker_module
+  until: docker_module.failed is not defined
+  retries: 5
+  delay: 10
+
+- include: ../../common/tasks/container_status_check.yml
+- include: ../../common/tasks/process_status_check.yml
+- include: ../../common/tasks/cleanup.yml
+
+# commenting this check out, since we're changing the protocol to http
+#- name: wait for the node to join the cluster
+#  sudo_user: root
+#  sudo: yes
+#  shell: docker exec logstash curl -X GET '{{ elastic_search_url }}/_cluster/state/nodes'  | grep {{ ansible_eth0.ipv4.address }} | wc -l
+#  when: container_started.stdout == "1" and config_stack == 'true'
+#  register: joined_cluster
+#  until: joined_cluster.stdout == "1"
+#  retries: 30
+#  delay: 5
+
+- include: ../../common/tasks/update_stack_key.yml
+- include: ../../common/tasks/deploy_usam.yml

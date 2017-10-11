@@ -1,0 +1,114 @@
+heat_template_version: 2013-05-23
+description: Template to create a scale group with anti-affinity
+parameters:
+  image:
+    type: string
+    description: Image used for servers
+    default: ubuntu-amd64
+  key:
+    type: string
+    description: SSH key to connect to the servers
+    default: heat_key
+  flavor:
+    type: string
+    description: flavor used by the web servers
+    default: m1.small
+  frontend_network:
+    type: string
+    description: internal network
+    default: private
+  min_size:
+    type: number
+    description: Min size of the group
+    default: 1
+  security_group:
+    type: string
+    description: security group
+  manager_ip:
+    type: string
+    description: ip or hostname of manager node
+  init_manager_private_key:
+    type: string
+    description: SSH private key to connect to initial manager    
+  config:
+    type: string
+    description: Config resource for node registration
+  role_name:
+    type: string
+    description: Role name
+  availability_zone:
+    type: string
+    description: Hypervisor availability zone
+    default: nova
+  server_group:
+    type: string
+    description: kafka server group for anti-affinity
+  cluster_num:
+    type: number
+    description: Number of the cluster to be deployed
+    default: 1
+  cluster_name:
+    type: string
+    description: Cluster name for elasticsearch
+    default: ""
+  redstone_magic:
+    description: redstone access magic word
+    type: string
+    hidden: true
+    default: reddiamond:wsaq!23e
+  apt_repo:
+    description: aptly publish repository
+    type: string
+    default: logging
+
+resources:
+  g:
+    type: OS::Heat::AutoScalingGroup
+    properties:
+      min_size: { get_param: min_size }
+      max_size: 32
+      resource:
+        type: IBM::Logmet::Member2
+        properties:
+          image: { get_param: image }
+          key: { get_param: key }
+          flavor: { get_param: flavor }
+          manager_ip: { get_param: manager_ip }
+          init_manager_private_key: { get_param:  init_manager_private_key }           
+          config: { get_param: config }
+          frontend_network: { get_param: frontend_network }
+          security_group: { get_param: security_group }
+          role_name: { get_param: role_name }
+          server_group: { get_param: server_group }
+          availability_zone: { get_param: availability_zone }
+          cluster_num: { get_param: cluster_num }
+          cluster_name: { get_param: cluster_name }
+          apt_repo: { get_param: apt_repo }
+          redstone_magic: { get_param: redstone_magic }
+
+  up:
+    type: OS::Heat::ScalingPolicy
+    properties:
+      adjustment_type: change_in_capacity
+      auto_scaling_group_id: {get_resource: g}
+      cooldown: 60
+      scaling_adjustment: 1
+
+  dn:
+    type: OS::Heat::ScalingPolicy
+    properties:
+      adjustment_type: change_in_capacity
+      auto_scaling_group_id: {get_resource: g}
+      cooldown: 60
+      scaling_adjustment: -1
+
+outputs:
+  scale_up_url:
+    value: { get_attr: [ up, alarm_url ] }
+    description: Scale up url
+  scale_dn_url:
+    value: { get_attr: [ dn, alarm_url ] }
+    description: Scale down url
+  server_group:
+    value: { get_param: server_group }
+    description: Scaling policy group for anti-affinity

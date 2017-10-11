@@ -1,0 +1,216 @@
+---
+- name: check supervisor service status
+  sudo_user: root
+  sudo: yes
+  stat: path=/etc/supervisor/supervisord.conf
+  register: super
+
+- name: Ensure supervisor service stopped for upgrade
+  sudo_user: root
+  sudo: yes
+  service: name=supervisor state=stopped
+  when: rolling_update_batch_size is defined and rolling_update_batch_size != "100%" and super.stat.exists == True 
+
+#ps -ef | grep java | grep -v grep | awk '{print $2}' | xargs kill -9 
+- name: clean java process
+  sudo_user: root
+  sudo: yes
+  shell: ps -ef | grep java | grep -v grep | awk '{print $2}' | xargs kill -9
+  when: rolling_update_batch_size is defined and rolling_update_batch_size != "100%"
+
+- name: remove plugins
+  sudo_user: root
+  sudo: yes
+  apt: pkg={{ item }} state=absent
+  with_items:
+     - ibm-logging-logstash-input-edge-s3-logstash{{ logstash_ver[0:1] }}=*  
+     - ibm-logging-logstash-filter-cluster-logstash{{ logstash_ver[0:1] }}=*
+  when: rolling_update_batch_size is defined and rolling_update_batch_size != "100%" and super.stat.exists == True
+
+- name: Update apt cache if not done today
+  become: yes
+  apt: update_cache=yes cache_valid_time=3600
+
+- name: Install JAVA8
+  become: yes
+  apt: name=openjdk-8-jdk state=latest
+
+- name: Set the time in the container to UTC
+  become: yes
+  command: ln -sf /usr/share/zoneinfo/UTC /etc/localtime
+
+- name: Install haveged to speed up random number generation
+  become: yes
+  apt: name=haveged state=latest
+
+- name: Enable haveged
+  become: yes
+  command: update-rc.d haveged defaults
+
+- name: install logstash
+  sudo_user: root
+  sudo: yes
+  apt: pkg={{ item }}
+  with_items:
+     - logstash=1:{{ logstash_ver }}-1
+
+- name: Install common Logstash plugins
+  include: roles/common/tasks/install-logstash-plugins.yml
+
+- name: install customized logstash plugins for swift
+  sudo_user: root
+  sudo: yes
+  apt: pkg={{ item }}
+  with_items:
+     - ibm-logging-logstash-filter-cluster-logstash{{ logstash_ver[0:1] }}={{ logstash_ver[0:3] }}-*
+     - ibm-logging-logstash-input-swift-logstash{{ logstash_ver[0:1] }}={{ logstash_ver[0:3] }}-*
+  when: object_store_type == "swift"
+
+- name: install customized logstash plugins for s3
+  sudo_user: root
+  sudo: yes
+  apt: pkg={{ item }}
+  with_items:
+     - ibm-logging-logstash-filter-cluster-logstash{{ logstash_ver[0:1] }}={{ logstash_ver[0:3] }}-*
+     - ibm-logging-logstash-input-edge-s3-logstash{{ logstash_ver[0:1] }}={{ logstash_ver[0:3] }}*
+  when: object_store_type == "s3"
+
+#copy kafka ssl truststore
+- name: copy kafka ssl truststore
+  sudo_user: root
+  sudo: yes
+  copy: src={{ KAFKA_SSL_TRUSTSTORE_SOURCE }} dest={{ KAFKA_SSL_TRUSTSTORE_TARGET }} owner=root group=root mode=0644
+  when: KAFKA_SSL_ENABLED is defined and KAFKA_SSL_ENABLED == 1
+
+- name: Copy configurations
+  become: yes
+  copy: src=roles/logstash_objstore/files/etc-logstash-{{ logstash_ver }}/ dest=/etc/logstash/ directory_mode=655
+
+- name: Apply conf templates
+  template:
+    src: "roles/logstash_objstore/templates/etc-logstash-{{logstash_ver }}/{{ item }}.j2"
+    dest: "/etc/logstash/conf.d/{{ item }}"
+  with_items:
+    - 00-input.conf
+    - 99-output.conf
+
+# Move the 95-logstash-date-filter.conf and 97-rename-filter.conf
+# into customer filter, then clean them
+- name: clean the 95-logstash-date-filter.conf
+  become: yes
+  file:
+    path: /etc/logstash/conf.d/95-logstash-date-filter.conf
+    state: absent
+
+- name: clean the 97-rename-filter.conf
+  become: yes
+  file:
+    path: /etc/logstash/conf.d/97-rename-filter.conf
+    state: absent
+
+- name: apply path.settings for logstash_objstore
+  become: yes
+  template:
+    src: "roles/logstash_objstore/templates/{{ item }}.j2"
+    dest: "/etc/logstash/{{ item }}"
+  with_items:
+    - jvm.options
+    - log4j2.properties
+
+- name: prepare the configuration files for logstash
+  become: yes
+  template:
+    src: "etc-default-logstash.j2"
+    dest: "/etc/default/logstash"
+    owner: root
+    group: root
+    mode: 0644
+
+- name: override configurations for s3
+  become: yes
+  template: 
+    src: "etc-logstash-5.1.1/s3/{{ item }}.j2"   
+    dest: "/etc/logstash/conf.d/{{ item }}" 
+  with_items:
+    - 00-input.conf
+    - 99-output.conf
+  when: object_store_type == "s3"
+
+#copy jaas config file for Kafka SASL support
+- name: copy kafka_client_jaas.conf file
+  sudo_user: root
+  sudo: yes
+  template:
+    dest: /etc/logstash/kafka_client_jaas.conf
+    owner: root
+    group: root
+    mode: 0644
+    src: kafka_client_jaas.conf.j2
+  when: KAFKA_SSL_ENABLED is defined and KAFKA_SSL_ENABLED == 1
+
+- name: install supervisor
+  sudo_user: root
+  sudo: yes
+  apt:
+    name: supervisor
+
+- name: copy supervisord.conf
+  become: yes
+  copy: src=files/supervisord.conf dest=/etc/supervisor/
+
+- name: copy logstash.conf
+  become: yes
+  copy: src=files/logstash.conf dest=/etc/supervisor/conf.d/
+
+- name: Ensure supervisor service
+  sudo_user: root
+  sudo: yes
+  service: name=supervisor state=restarted
+
+- name: copy env vars file
+  become: yes
+  template:
+    src: "env_vars.j2"
+    dest: "/tmp/env_vars.sh"
+
+- name: Install jq
+  become: yes
+  apt: name=jq state=latest
+
+- name: copy 00-input.conf to /opt
+  become: yes
+  template:
+    src: "etc-logstash-5.1.1/s3/00-input.conf.j2"
+    dest: "/opt/00-input.conf"
+  when: object_store_type == "s3"
+
+- name: Copy monitorDiffKafkaTopic.sh to target
+  copy: src=monitorDiffKafkaTopic.sh dest=/opt
+
+- name: merge env_vars.sh and monitorDiffKafkaTopic.sh
+  become: yes
+  shell: cat /tmp/env_vars.sh /opt/monitorDiffKafkaTopic.sh > /opt/monitorKafka.sh
+
+- name: Set Permissions
+  become: yes
+  command: chmod a+x /opt/monitorKafka.sh
+
+- name: Copy monitorCronTab.cron to target
+  copy: src=monitorCronTab.cron dest=/opt
+
+- name: Set Permissions
+  become: yes
+  command: chmod a+x /opt/monitorCronTab.cron
+
+- name: Set crontab to monitor kafka
+  become: yes
+  shell: crontab /opt/monitorCronTab.cron
+
+- cron:
+    name: delete logs for over 7 days
+    minute: "30"
+    hour: "00"
+    day: "*"
+    month: "*"
+    user: ubuntu
+    job: "sudo find /var/log/logstash/*.log -mmin +$((60*24*7)) -type f -delete"

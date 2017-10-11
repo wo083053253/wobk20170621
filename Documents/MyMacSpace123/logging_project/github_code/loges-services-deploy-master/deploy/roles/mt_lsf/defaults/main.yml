@@ -1,0 +1,14 @@
+---
+#redstone cred for apt installation
+snapshot: "{{ apt_repo }}"
+redstone_cred: "{{ redstone_magic }}"
+
+#user=logmet@us.ibm.com
+#space=dev&organization=alchemy-dev-logmet@bg.vnet.ibm.com
+stack_name: "{{ STACK_NAME | default('dev') }}"
+cluster_name: "{{ STACK_NAME | default('test') }}"
+target_api: "{{ dashboard_proxy }}"
+target_logs: "{{ logs_hostname }}"
+target_space_id: "{{ sidecar_target_space_id | default('633ac390-ab60-4617-ad02-2609df4f7a13') }}"
+target_token: "{{ sidecar_target_token | default('upsrhztlK0yz') }}"
+## END

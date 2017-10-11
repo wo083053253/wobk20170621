@@ -1,0 +1,2 @@
+KAFKATIMESTAMP \[%{YEAR:year}-%{MONTHNUM:month}-%{MONTHDAY:day}\ %{HOUR:hour}:%{MINUTE:minute}:%{NUMBER:seconds},%{NUMBER:milliseconds}\]
+CONTROLLER %{GREEDYDATA}\ %{NUMBER:controllerid}

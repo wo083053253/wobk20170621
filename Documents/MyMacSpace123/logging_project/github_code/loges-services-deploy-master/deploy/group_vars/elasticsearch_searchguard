@@ -1,0 +1,9 @@
+---
+scriptsdir: "/opt/deploy/scripts"
+sgplugindir: "/usr/share/elasticsearch/plugins/search-guard-5"
+serverid: "0"
+clientid: "client"
+passwd: "aq1sw2de#"
+es_plugins:
+  - plugin: search-guard-5:5.1.1-15
+

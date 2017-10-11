@@ -1,0 +1,77 @@
+---
+# file: group_vars/all
+# The variable for this development environment will register to
+# the production space until we can straighten out the communication with
+# stage, so while the data is in a different location the prod user auth 
+# is in use ( fauxkeystone and alogmon and graphite_environment ) 
+registry: 'registry.ng.bluemix.net/logmetdev'
+production: 1
+metrics_host: carbonrelay
+metrics_port: 2013
+graphite_environment: 1fb90c5d-84e6-452f-a131-9128c565a64f.dev
+dashboard_proxy: logmet.dev.opvis.bluemix.net
+metrics_hostname: metrics.dev.opvis.bluemix.net
+logs_hostname: logs.dev.opvis.bluemix.net
+tenantinfo_client_auth: j5s8kLR34bM4
+pause_interval: 1
+MONITOR_USER_ID: REPLACE_MONITOR_USER
+MONITOR_PASSWORD: REPLACE_MONITOR_PASSWORD
+BLUEMIX_AUTH_API: api.ng.bluemix.net
+DOCKER_REPO_USER_ID: REPLACE_DOCKER_REPO_USER_ID
+DOCKER_REPO_PASSWORD: REPLACE_DOCKER_REPO_PASSWORD
+DOCKER_REPO_SPACE_NAME: REPLACE_DOCKER_REPO_SPACE_NAME
+DOCKER_REPO_ORG_NAME: REPLACE_DOCKER_REPO_ORG_NAME
+logmet_environment: dev
+UAA_CREDS: REPLACE_UAA_CREDS
+SSO_ENABLED: 1
+REGION: eu-gb
+
+# Below is logmet softlayer object store account/credentials
+LOGMET_SWIFT_USER_ID: REPLACE_LOGMET_SWIFT_USER_ID
+LOGMET_SWIFT_PASSWORD: REPLACE_LOGMET_SWIFT_PASSWORD
+LOGMET_SWIFT_REGION: REPLACE_LOGMET_SWIFT_REGION
+
+ESALIAS_ENABLED: 0
+# if set, date below should be in ISO8601 format
+ESALIAS_ENABLE_DATE: 
+MULTI_CLUSTER_ES_ENABLED: 0
+RENAME_FILTER_ENABLED: 0
+THROTTLE_ENABLED: 0
+CAPPING_ENABLED: 0
+MULTI_TOPICS_ENABLED: 0
+
+SEGMENT_KEY: REPLACE_SEGMENT_KEY
+SEGMENT_USERID: 1fb90c5d-84e6-452f-a131-9128c565a64f
+SEGMENT_ENVIRONMENT: dev
+SEGMENT_REGION: dev
+
+sidecar_target_api: logmet.dev.opvis.bluemix.net
+sidecar_target_logs: logs.dev.opvis.bluemix.net
+sidecar_target_metrics: metrics.dev.opvis.bluemix.net
+sidecar_target_tenant_org: eventgen-deployment@bg.vnet.ibm.com
+sidecar_target_tenant_space: dev
+
+# Logstash version, 2.3.1 or 5.1.1
+logstash_ver: 5.1.1
+
+# ibm cloud object store
+S3_REGION: us-geo
+S3_BUCKET_NAME: edge-logging
+AWS_ACCESS_KEY_ID: REPLACE_AWS_ACCESS_KEY_ID
+AWS_SECRET_ACCESS_KEY: REPLACE_AWS_SECRET_ACCESS_KEY
+AWS_ENDPOINT_TYPE: private
+
+#kafka ssl setting
+KAFKA_SSL_ENABLED: 0
+#source
+KAFKA_SSL_KEYSTORE_SOURCE: 'files/kafka/kafka.server.keystore.jks'
+KAFKA_SSL_TRUSTSTORE_SOURCE: 'files/kafka/kafka.client.truststore.jks'
+KAFKA_SSL_KEYSTORE_TYPE: JKS
+KAFKA_SSL_TRUSTSTORE_TYPE: JKS
+KAFKA_SSL_PASSWORD: 'l0gg1ng'
+KAFKA_SSL_ENABLED_PROTOCOLS: TLSv1.2
+#kafka SASL config
+jaas_admin_username: admin
+jaas_admin_password: jfi0kUJ9
+jaas_client_username: client
+jaas_client_password: ei89JKM6

@@ -1,0 +1,35 @@
+# This is the development grade environment which deploys everything on
+# smaller hardware.  Also note that this does not use the special images
+# or hardware for elasticsearch or carbon-cache
+parameters:
+  min_size: {"manager": 1,
+           "elasticsearch_data_hot": 2,
+           "elasticsearch_data_warm": 2,
+           "elasticsearch_http": 2,
+           "elasticsearch_master": 3,
+           "elasticsearch_lb": 2,
+           "logstash": 1,
+           "monitor": 1,
+           "logstash_fastforwarder": 1,
+           "logstash_objstore": 1}
+  flavor: {"manager": "m1.medium",
+           "elasticsearch_data_hot": "m1.medium",
+           "elasticsearch_data_warm": "m1.medium",
+           "elasticsearch_http": "m1.medium",
+           "elasticsearch_master": "m1.medium",
+           "elasticsearch_lb": "m1.medium",
+           "logstash": "m1.medium",
+           "monitor": "m1.medium",
+           "logstash_fastforwarder": "m1.medium",
+           "logstash_objstore": "m1.medium"
+          }
+  images: { "default": "logging-07-25-heat-config-16.04",
+  "elasticsearch_data_hot": "logging-07-25-heat-config-16.04",
+  "elasticsearch_data_warm": "logging-07-25-heat-config-16.04"
+          }
+parameter_defaults:
+  availability_zone: { "default": "nova",
+            "kafka": "nova",
+            "elasticsearch_data_hot": "nova",
+            "elasticsearch_data_warm": "nova"
+          }

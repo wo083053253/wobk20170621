@@ -1,0 +1,28 @@
+
+#Output file for ops visibility project
+output {
+
+    if ("{{ESALIAS_ENABLED}}" == "1") and ("logmet_before_alias_date" not in [tags]) {
+            elasticsearch {
+                    hosts => [ {{ELASTICSEARCH_HTTP_NODE_LOGSTASH}} ]
+                    retry_max_interval => 60
+                    index => "logstash-%{+YYYY.MM.dd}"
+                    flush_size => {{flush_size }}
+                    manage_template => false
+                    document_id => "%{event_uuid}"
+                    timeout => 90
+            }
+    } else {
+            elasticsearch {
+                    hosts => [ {{ELASTICSEARCH_HTTP_NODE_LOGSTASH}} ]
+                    retry_max_interval => 60
+                    index => "logstash-%{ALCH_TENANT_ID}-%{+YYYY.MM.dd}"
+                    flush_size => {{flush_size }}
+                    manage_template => false
+                    document_id => "%{event_uuid}"
+                    timeout => 90
+            }
+    }
+
+}
+

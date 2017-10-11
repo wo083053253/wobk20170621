@@ -1,0 +1,8 @@
+- hosts: all
+  roles:
+  - collectd
+
+- include: es_monitor.yml
+
+- include: statsc.yml
+

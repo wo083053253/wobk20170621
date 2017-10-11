@@ -1,0 +1,6 @@
+---
+alogmon_url: "{{ ALOGMON_URL }}"
+tenantinfo_url: "{{ TENANTINFO_URL }}"
+elasticsearch_url: "{{ ELASTICSEARCH_URL }}"
+retention_time: 345600
+restore_retention_time: 345600

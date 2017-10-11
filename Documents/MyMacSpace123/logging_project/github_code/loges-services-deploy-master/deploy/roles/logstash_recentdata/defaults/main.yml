@@ -1,0 +1,4 @@
+kafka_input_plugin_version: 6.3.0
+elasticsearch_output_plugin_version: 6.2.0
+custom_filters: "10-logtrail 20-iibcloud 20-liberty 20-mariposa 20-resmgr 20-taas 20-c2c"
+

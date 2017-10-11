@@ -1,0 +1,5 @@
+---
+tenantinfo_url: https://tenantinfo:9099
+elasticsearch_url: http://elasticsearch:9200
+retention_time: 10000
+restore_retention_time: 172800

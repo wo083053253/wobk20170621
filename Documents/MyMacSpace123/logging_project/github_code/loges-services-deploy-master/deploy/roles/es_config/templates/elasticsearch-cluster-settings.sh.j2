@@ -1,0 +1,27 @@
+#!/bin/bash
+
+script_dir="$( cd $(dirname "$0"); pwd )"
+es_host="{{ groups['elasticsearch_master_servers'][0] }}"
+
+function es() {
+    url="$1"
+    curl -s "http://$es_host:9200/$url"
+}
+
+function espost() {
+    url="$1"
+    curl -s -XPUT -H 'Content-Type: application/json' -d "$2" "http://$es_host:9200/$url"
+}
+
+retry_interval=5
+
+# Wait for ES to be running and not red
+while [[ ! $(es _cat/health | egrep "yellow|green") ]]; do
+    echo "$(date --iso-8601=seconds) Waiting for cluster..."
+    sleep $retry_interval
+done
+
+# Load elasticsearch cluster level settings
+echo "$(date --iso-8601=seconds) Setting elasticsearch cluter..."
+espost "_cluster/settings" "@elasticsearch-settings"
+echo

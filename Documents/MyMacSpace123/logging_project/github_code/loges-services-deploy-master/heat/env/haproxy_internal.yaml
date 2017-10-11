@@ -1,0 +1,128 @@
+heat_template_version: 2013-05-23
+description: haproxy node
+parameters:
+  image:
+    type: string
+    description: Image used for the server
+    default: ubuntu-amd64
+  key:
+    type: string
+    description: SSH key to connect to the server
+    default: heat_key
+  flavor:
+    type: string
+    description: flavor used by the server
+    default: m1.small
+  frontend_network:
+    type: string
+    description: internal network of the group
+    default: private
+  manager_ip:
+    type: string
+    description: manager server ip
+  security_group:
+    type: string
+    description: security group
+  config:
+    type: string
+    description: register software config
+  role_name:
+    type: string
+    description: Role name for the HAProxy pair
+  role_list:
+    type: string
+    description: List of roles for the internal HAProxy pair
+  min_size:
+    type: number
+    description: Min size of the group
+    default: 1
+  availability_zone:
+    type: string
+    description: availability_zone used for servers
+    default: nova
+  init_manager_private_key:
+    type: string
+    description: SSH private key to connect to initial manager    
+  cluster_name:
+    type: string
+    default: elasticsearch_1
+  cluster_num:
+    type: number
+    default: 1
+  server_group:
+    type: string
+    description: loadbalance group for anti-affinity
+
+resources:
+  rand:
+    type: OS::Heat::RandomString
+    properties:
+      length: 5
+      sequence: lowercase
+
+  virtual_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_param: frontend_network }
+      security_groups:
+        - { get_param: security_group }
+      name:
+        str_replace:
+          template: stack-role-tag-rand
+          params:
+            stack: { "Fn::Select": [ 0, { "Fn::Split": [ "-", { get_param: "OS::stack_name" }]}]}
+            role: { get_param: role_name }
+            tag: "virtual_ip"
+            rand: { get_resource: rand }
+
+  haproxy:
+    type: OS::Heat::AutoScalingGroup
+    properties:
+      min_size: { get_param: min_size }
+      max_size: 32
+      resource:
+        type: IBM::Logmet::HAProxyMember
+        properties:
+          flavor: { get_param: flavor }
+          image: { get_param: image }
+          frontend_network: { get_param: frontend_network }
+          manager_ip: { get_param: manager_ip }
+          security_group: { get_param: security_group }
+          config: { get_param: config }
+          role_name: { get_param: role_name }
+          role_list: { get_param: role_list }
+          virtual_ip: { get_attr: [ virtual_port, fixed_ips, 0, ip_address ] }
+          availability_zone: { get_param: availability_zone }
+          init_manager_private_key: { get_param:  init_manager_private_key }
+          cluster_name: { get_param: cluster_name }
+          cluster_num: { get_param: cluster_num }
+          server_group: { get_param: server_group }
+
+  up:
+    type: OS::Heat::ScalingPolicy
+    properties:
+      adjustment_type: change_in_capacity
+      auto_scaling_group_id: { get_resource: haproxy }
+      cooldown: 60
+      scaling_adjustment: 1
+
+  dn:
+    type: OS::Heat::ScalingPolicy
+    properties:
+      adjustment_type: change_in_capacity
+      auto_scaling_group_id: { get_resource: haproxy }
+      cooldown: 60
+      scaling_adjustment: -1
+
+outputs:
+  lb_ip:
+    value: { get_attr: [ virtual_port, fixed_ips, 0, ip_address ] }
+  virtual_port_id:
+    value: { get_resource: virtual_port }
+  scale_up_url:
+    value: { get_attr: [ up, alarm_url ] }
+    description: Scale up url
+  scale_dn_url:
+    value: { get_attr: [ dn, alarm_url ] }
+    description: Scale down url
+
